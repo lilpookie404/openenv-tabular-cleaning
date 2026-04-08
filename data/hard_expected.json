@@ -1,0 +1,42 @@
+[
+  {
+    "appointment_id": "APT-001",
+    "patient_name": "Maya Singh",
+    "department": "Cardiology",
+    "doctor": "Dr. Anne Li",
+    "appointment_time": "2024-04-10T09:30",
+    "status": "confirmed",
+    "notes": "yearly checkup",
+    "updated_at": "2024-04-01T08:00"
+  },
+  {
+    "appointment_id": "APT-002",
+    "patient_name": "Jonah Price",
+    "department": "Orthopedics",
+    "doctor": "Dr. Omar Reed",
+    "appointment_time": "2024-04-11T14:00",
+    "status": "checked_in",
+    "notes": "follow-up visit",
+    "updated_at": "2024-04-03T10:00"
+  },
+  {
+    "appointment_id": "APT-003",
+    "patient_name": "Lina Cho",
+    "department": "Neurology",
+    "doctor": "Dr. Jo Park",
+    "appointment_time": "2024-04-12T11:45",
+    "status": "scheduled",
+    "notes": "MRI review",
+    "updated_at": "2024-04-04T12:00"
+  },
+  {
+    "appointment_id": "APT-004",
+    "patient_name": "Owen Diaz",
+    "department": "Cardiology",
+    "doctor": "Dr. Anne Li",
+    "appointment_time": "2024-04-13T16:00",
+    "status": "scheduled",
+    "notes": "UNKNOWN",
+    "updated_at": "2024-04-05T13:30"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "employee_id": "E001",
+    "full_name": " alice johnson ",
+    "email": "ALICE.JOHNSON@EXAMPLE.COM ",
+    "department": " hr ",
+    "start_date": "2024/01/15",
+    "phone": " 555-0101 "
+  },
+  {
+    "employee_id": "E002",
+    "full_name": "BOB SMITH",
+    "email": " bob.smith@example.com",
+    "department": "Human Resources",
+    "start_date": "01/20/2024",
+    "phone": ""
+  },
+  {
+    "employee_id": "E003",
+    "full_name": " Carla Gomez",
+    "email": "carla.gomez@example.com ",
+    "department": "Eng",
+    "start_date": "2024-02-05",
+    "phone": "555-0103"
+  },
+  {
+    "employee_id": "E004",
+    "full_name": "david lee ",
+    "email": " DAVID.LEE@example.com",
+    "department": "Finance ",
+    "start_date": "2024-02-18",
+    "phone": null
+  }
+]

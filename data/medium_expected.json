@@ -1,0 +1,38 @@
+[
+  {
+    "order_id": "ORD-1001",
+    "customer_name": "Ava Patel",
+    "status": "shipped",
+    "amount": 120.5,
+    "order_date": "2024-03-01",
+    "city": "Seattle",
+    "state": "WA"
+  },
+  {
+    "order_id": "ORD-1002",
+    "customer_name": "Liam Chen",
+    "status": "pending",
+    "amount": 89.0,
+    "order_date": "2024-03-02",
+    "city": "UNKNOWN",
+    "state": "UNKNOWN"
+  },
+  {
+    "order_id": "ORD-1003",
+    "customer_name": "Noah Kim",
+    "status": "cancelled",
+    "amount": 45.0,
+    "order_date": "2024-03-03",
+    "city": "Austin",
+    "state": "TX"
+  },
+  {
+    "order_id": "ORD-1004",
+    "customer_name": "Mia Lopez",
+    "status": "shipped",
+    "amount": 210.0,
+    "order_date": "2024-03-04",
+    "city": "Denver",
+    "state": "CO"
+  }
+]

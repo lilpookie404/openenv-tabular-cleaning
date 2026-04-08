@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-tabular-cleaning"
+version = "0.1.0"
+description = "OpenEnv environment for deterministic tabular data cleaning"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openenv-core @ git+https://github.com/meta-pytorch/OpenEnv.git@c719decf2b19175d5ca35301d58a14c83e985480",
+    "fastapi>=0.115.0",
+    "pydantic>=2.8.0",
+    "uvicorn>=0.30.0",
+    "requests>=2.32.0",
+    "websockets>=15.0.1",
+    "openai>=1.52.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["server*", "tabular_cleaning_env*"]

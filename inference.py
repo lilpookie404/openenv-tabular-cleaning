@@ -40,9 +40,10 @@ def _action_text(action: TabularCleaningAction) -> str:
 
 
 def build_openai_client() -> Tuple[Optional[OpenAI], str]:
-    base_url = os.getenv("API_BASE_URL", "").strip()
-    model_name = os.getenv("MODEL_NAME", "").strip() or "deterministic-fallback"
-    api_key = os.getenv("HF_TOKEN", "").strip()
+    base_url = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1").strip()
+    model_name = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct").strip()
+    hf_token = os.getenv("HF_TOKEN")
+    api_key = hf_token.strip() if hf_token else None
     if not (base_url and model_name and api_key) or OpenAI is Any:
         return None, model_name
     return OpenAI(base_url=base_url, api_key=api_key), model_name

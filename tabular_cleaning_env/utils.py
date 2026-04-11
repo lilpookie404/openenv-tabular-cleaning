@@ -110,7 +110,7 @@ def is_canonical_datetime_for_task(value: Any, include_time: bool) -> bool:
 
 def completeness_score(rows: Sequence[Dict[str, Any]], required_columns: Sequence[str]) -> float:
     if not rows or not required_columns:
-        return 1.0
+        return 1
     total = len(rows) * len(required_columns)
     filled = 0
     for row in rows:

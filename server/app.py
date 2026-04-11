@@ -175,10 +175,10 @@ def index() -> HTMLResponse:
           <section class="code-card">
             <p>The baseline emits parser-safe logs in the required START / STEP / END format.</p>
             <pre>[START] task=easy_contacts_cleanup env=tabular_cleaning_env model=gpt-4.1-mini
-[STEP] step=1 action={{"action_type":"profile_table"}} reward=0.00 done=false error=null
+[STEP] step=1 action={{"action_type":"profile_table"}} reward=0.01 done=false error=null
 [STEP] step=2 action={{"action_type":"rename_column","column":"full_name","new_name":"name"}} reward=0.05 done=false error=null
-[STEP] step=3 action={{"action_type":"approve_changes","change_id":"chg-001"}} reward=0.00 done=false error=null
-[END] success=true steps=13 rewards=0.00,0.05,0.00,0.08,0.06,0.04,0.04,0.14,0.03,0.00,0.00,0.00,0.00</pre>
+[STEP] step=3 action={{"action_type":"approve_changes","change_id":"chg-001"}} reward=0.01 done=false error=null
+[END] success=true steps=13 rewards=0.01,0.05,0.01,0.08,0.06,0.04,0.04,0.14,0.03,0.02,0.02,0.02,0.06</pre>
           </section>
         </main>
       </body>

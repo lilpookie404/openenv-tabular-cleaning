@@ -376,7 +376,7 @@ def run_task(
             result = env.step(action)
             executed_actions.add(_action_signature(action))
             step_count += 1
-            reward = float(result.reward or 0.0)
+            reward = float(result.reward or 0)
             rewards.append(reward)
             last_error = result.last_action_error
             score = result.current_score_estimate

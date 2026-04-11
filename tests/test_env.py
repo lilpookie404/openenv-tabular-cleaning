@@ -71,7 +71,7 @@ def test_risky_change_requires_approval_before_more_mutations() -> None:
     change_id = renamed.risky_changes[-1]["change_id"]
 
     blocked = env.step(TabularCleaningAction(action_type=ActionType.STRIP_WHITESPACE))
-    assert blocked.reward == 0.0
+    assert blocked.reward == 0
     assert blocked.last_action_error is not None
     assert "Approve or reject" in blocked.last_action_error
 
@@ -102,7 +102,7 @@ def test_rule_based_fallback_reaches_near_perfect_open_interval_score() -> None:
     for task_id in TASKS:
         result = inference.run_task(task_id, client=None, model_name="deterministic-fallback")
         assert result["success"] is True
-        assert 0.999 < result["score"] < 1.0
+        assert 0.999 < result["score"] < 1
 
 
 def test_rule_based_fallback_does_not_emit_sort_rows() -> None:
@@ -130,7 +130,7 @@ def test_invalid_action_has_zero_reward() -> None:
     result = env.step(
         TabularCleaningAction(action_type=ActionType.RENAME_COLUMN, column="missing", new_name="name")
     )
-    assert result.reward == 0.0
+    assert result.reward == 0
     assert result.last_action_error is not None
 
 

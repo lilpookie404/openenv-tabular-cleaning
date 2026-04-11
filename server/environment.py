@@ -133,7 +133,7 @@ class TabularCleaningEnvironment(Environment):
         del timeout_s
         if self._state.submitted or self._state.step_count >= self._task.max_steps:
             return self._build_observation(
-                reward=0.0,
+                reward=0,
                 done=True,
                 error="Episode already finished. Call reset() to start a new task.",
                 metadata={"final_score": self._state.current_score, "reason": "episode_complete"},
@@ -259,15 +259,15 @@ class TabularCleaningEnvironment(Environment):
         self._state.current_columns = self._current_columns()
         episode_score = self._compose_episode_score(grades["score"])
         self._state.current_score = episode_score
-        reward = 0.0
+        reward = 0
 
         if error is None:
             if episode_score < previous_score:
                 info["penalty_type"] = "destructive"
-            reward = max(0.0, round(episode_score - previous_best, 6))
+            reward = max(0, round(episode_score - previous_best, 6))
             self._state.best_score_so_far = max(previous_best, episode_score)
         else:
-            reward = 0.0
+            reward = 0
             grades = grade_table(self._task, self._table)
             self._state.current_score = self._compose_episode_score(grades["score"])
             self._state.current_table = clone_rows(self._table)
@@ -349,7 +349,7 @@ class TabularCleaningEnvironment(Environment):
         return list(self._table[0].keys())
 
     def _workflow_score_bonus(self) -> float:
-        bonus = 0.0
+        bonus = 0
         if self._state.validation_status == "passed":
             bonus += self.VALIDATION_BONUS
         if bool(self._state.export_artifacts):
@@ -369,7 +369,7 @@ class TabularCleaningEnvironment(Environment):
         effective_validation = self._state.validation_status if validation_status is None else validation_status
         effective_export = bool(self._state.export_artifacts) if has_export_artifact is None else has_export_artifact
         effective_published = self._state.published if published is None else published
-        bonus = 0.0
+        bonus = 0
         if effective_validation == "passed":
             bonus += self.VALIDATION_BONUS
         if effective_export:

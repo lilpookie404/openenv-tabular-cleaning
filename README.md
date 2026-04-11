@@ -219,7 +219,7 @@ This lets the baseline and any external agent behave generically instead of bran
 
 ## Deterministic Grading
 
-Each task has a bundled reference table and a deterministic grader that emits a task score strictly inside `(0.0, 1.0)`.
+Each task has a bundled reference table and a deterministic grader that emits a task score strictly inside `(0, 1)`.
 
 Score components:
 
@@ -240,7 +240,7 @@ Important property:
 Rewards are shaped but bounded:
 
 - `reward = max(0, current_score - best_score_so_far_before_action)`
-- invalid, destructive, or no-op actions emit `0.0`
+- invalid, destructive, or no-op actions emit `0`
 - risky actions may improve score immediately, but they still must be approved before validation/export/publish
 - the episode ends when the table is published or when `max_steps` is reached
 
@@ -275,7 +275,7 @@ Reproducible baseline scores:
 
 ```text
 [START] task=<task_name> env=tabular_cleaning_env model=<model_name>
-[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+[STEP] step=<n> action=<action_str> reward=<reward_value> done=<true|false> error=<msg|null>
 [END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
 ```
 

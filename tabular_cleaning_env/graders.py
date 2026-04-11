@@ -38,11 +38,11 @@ def _current_rows_for_task(rows: Sequence[Dict[str, Any]], task: TaskDefinition)
 
 def _schema_score(rows: Sequence[Dict[str, Any]], task: TaskDefinition) -> float:
     if not rows:
-        return 0.0
+        return 0
     columns = list(rows[0].keys())
     expected = list(task.expected_columns)
     if columns == expected:
-        return 1.0
+        return 1
     matches = sum(1 for idx, column in enumerate(expected) if idx < len(columns) and columns[idx] == column)
     return matches / max(len(expected), 1)
 
@@ -56,10 +56,10 @@ def _row_alignment_score(
     expected_counts = Counter(canonical_key(row, task.primary_key) for row in expected_rows)
     all_keys = set(current_counts) | set(expected_counts)
     if not all_keys:
-        return 1.0
+        return 1
     total_diff = sum(abs(current_counts[key] - expected_counts[key]) for key in all_keys)
     max_total = max(sum(expected_counts.values()), 1)
-    return max(0.0, 1.0 - (total_diff / max_total))
+    return max(0, 1 - (total_diff / max_total))
 
 
 def _cell_match_score(
@@ -68,7 +68,7 @@ def _cell_match_score(
     task: TaskDefinition,
 ) -> float:
     if not expected_rows:
-        return 1.0
+        return 1
     current_by_key = {canonical_key(row, task.primary_key): row for row in current_rows}
     matches = 0
     total = len(expected_rows) * len(task.expected_columns)
@@ -78,7 +78,7 @@ def _cell_match_score(
         for column in task.expected_columns:
             if stringify(current_row.get(column)) == stringify(expected_row.get(column)):
                 matches += 1
-    return matches / total if total else 1.0
+    return matches / total if total else 1
 
 
 def _temporal_score(
@@ -87,7 +87,7 @@ def _temporal_score(
     task: TaskDefinition,
 ) -> float:
     if not task.date_columns:
-        return 1.0
+        return 1
     current_by_key = {canonical_key(row, task.primary_key): row for row in current_rows}
     matches = 0
     total = len(expected_rows) * len(task.date_columns)
@@ -102,12 +102,12 @@ def _temporal_score(
                 and is_canonical_datetime_for_task(current_value, include_time)
             ):
                 matches += 1
-    return matches / total if total else 1.0
+    return matches / total if total else 1
 
 
 def _open_interval_score(value: float) -> float:
-    bounded = min(max(value, 0.0), 1.0)
-    return OPEN_INTERVAL_EPSILON + (bounded * (1.0 - (2.0 * OPEN_INTERVAL_EPSILON)))
+    bounded = min(max(value, 0), 1)
+    return OPEN_INTERVAL_EPSILON + (bounded * (1 - (2 * OPEN_INTERVAL_EPSILON)))
 
 
 def grade_table(task: TaskDefinition, rows: Sequence[Dict[str, Any]]) -> Dict[str, float]:

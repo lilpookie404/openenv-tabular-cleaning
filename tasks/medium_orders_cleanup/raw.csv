@@ -1,0 +1,21 @@
+order_id,customer_name,status,amount,order_date,city,state
+ORD-1001,Ava Patel, shipped ,$120.50,2024/03/01, Seattle ,WA
+ORD-1002,Liam Chen,pending,89.00 ,03/02/2024,,
+ORD-1003,Noah Kim,cancelled,45,2024-03-03,Austin,TX
+ORD-1003,Noah Kim,cancelled,45,2024-03-03,Austin,TX
+ORD-1004,Mia Lopez, shipped,$210,2024/03/04, Denver,CO
+ORD-1005,Ravi Shah, shipped ,"$1,005.75",2024/03/05, San Jose ,CA
+ORD-1006,Zoe Hart,pending,58.40 ,03/06/2024,Portland ,OR
+ORD-1007,Elena Ruiz,shipped,74.25,2024-03-07,Phoenix,AZ
+ORD-1008,Marcus Bell,PENDING,$132,2024/03/08,,
+ORD-1008,Marcus Bell,PENDING,$132,2024/03/08,,
+ORD-1009,Priya Nair, shipped ,$249.99,2024/03/09, Chicago ,IL
+ORD-1010,Owen Diaz, cancelled ,18.50 ,03/10/2024,Miami ,FL
+ORD-1011,Grace Turner,shipped,64,2024-03-11,Dallas,TX
+ORD-1012,Henry Walker,PENDING,$310,2024/03/12,,
+ORD-1012,Henry Walker,PENDING,$310,2024/03/12,,
+ORD-1013,Ivy Brooks, shipped ,$415.20,2024/03/13, Boston ,MA
+ORD-1014,Jack Rivera,Shipped,27.99 ,03/14/2024,Las Vegas ,NV
+ORD-1015,Kelly Foster, pending,91.3,2024-03-15,Atlanta,GA
+ORD-1015,Kelly Foster, pending,91.3,2024-03-15,Atlanta,GA
+ORD-1016,Leo Bennett, shipped,$149,2024/03/16, San Diego,CA

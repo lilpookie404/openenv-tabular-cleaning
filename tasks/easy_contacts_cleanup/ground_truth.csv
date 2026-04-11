@@ -1,0 +1,19 @@
+customer_id,contact_name,email,customer_segment,signup_date,phone
+C001,Alice Johnson,alice.johnson@example.com,VIP,2024-01-15,555-0101
+C002,Bob Smith,bob.smith@example.com,Wholesale,2024-01-20,UNKNOWN
+C003,Carla Gomez,carla.gomez@example.com,Retail,2024-02-05,555-0103
+C004,David Lee,david.lee@example.com,Loyalty,2024-02-18,UNKNOWN
+C005,Eve Martin,eve.martin@example.com,Wholesale,2024-02-22,555-0105
+C006,Frank Wright,frank.wright@example.com,VIP,2024-02-25,555-0106
+C007,Grace Turner,grace.turner@example.com,Retail,2024-03-01,555-0107
+C008,Henry Walker,henry.walker@example.com,Loyalty,2024-03-04,UNKNOWN
+C009,Ivy Brooks,ivy.brooks@example.com,VIP,2024-03-07,555-0109
+C010,Jack Rivera,jack.rivera@example.com,Wholesale,2024-03-12,555-0110
+C011,Kelly Foster,kelly.foster@example.com,Retail,2024-03-18,UNKNOWN
+C012,Leo Bennett,leo.bennett@example.com,Loyalty,2024-03-21,555-0112
+C013,Maya Sullivan,maya.sullivan@example.com,VIP,2024-03-24,555-0113
+C014,Nina Cruz,nina.cruz@example.com,Wholesale,2024-03-28,UNKNOWN
+C015,Omar Hayes,omar.hayes@example.com,Retail,2024-04-02,555-0115
+C016,Paula Reed,paula.reed@example.com,Loyalty,2024-04-05,555-0116
+C017,Quinn Murphy,quinn.murphy@example.com,VIP,2024-04-09,UNKNOWN
+C018,Rita Patel,rita.patel@example.com,Wholesale,2024-04-12,555-0118

@@ -1,0 +1,17 @@
+order_id,customer_name,status,amount,order_date,city,state
+ORD-1001,Ava Patel,shipped,120.5,2024-03-01,Seattle,WA
+ORD-1002,Liam Chen,pending,89.0,2024-03-02,UNKNOWN,UNKNOWN
+ORD-1003,Noah Kim,cancelled,45.0,2024-03-03,Austin,TX
+ORD-1004,Mia Lopez,shipped,210.0,2024-03-04,Denver,CO
+ORD-1005,Ravi Shah,shipped,1005.75,2024-03-05,San Jose,CA
+ORD-1006,Zoe Hart,pending,58.4,2024-03-06,Portland,OR
+ORD-1007,Elena Ruiz,shipped,74.25,2024-03-07,Phoenix,AZ
+ORD-1008,Marcus Bell,pending,132.0,2024-03-08,UNKNOWN,UNKNOWN
+ORD-1009,Priya Nair,shipped,249.99,2024-03-09,Chicago,IL
+ORD-1010,Owen Diaz,cancelled,18.5,2024-03-10,Miami,FL
+ORD-1011,Grace Turner,shipped,64.0,2024-03-11,Dallas,TX
+ORD-1012,Henry Walker,pending,310.0,2024-03-12,UNKNOWN,UNKNOWN
+ORD-1013,Ivy Brooks,shipped,415.2,2024-03-13,Boston,MA
+ORD-1014,Jack Rivera,shipped,27.99,2024-03-14,Las Vegas,NV
+ORD-1015,Kelly Foster,pending,91.3,2024-03-15,Atlanta,GA
+ORD-1016,Leo Bennett,shipped,149.0,2024-03-16,San Diego,CA

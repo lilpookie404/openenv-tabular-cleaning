@@ -1,0 +1,21 @@
+appointment_id,customer_name,service_line,technician,appointment_time,status,notes,updated_at
+APT-001, maya singh , delivery ,alex cole,2024/04/10 09:30,confirmed, gate code confirmed ,2024/04/01 08:00
+APT-002,Jonah Price,install,sam reed,2024-04-11 14:00,scheduled, fragile order ,2024-04-02T09:15
+APT-002,JONAH PRICE,Installation,Sam Reed,04/11/2024 14:00,scheduled,fragile order,2024-04-03T10:00
+APT-003, Lina Cho, returns , jo park ,2024-04-12T11:45:00,scheduled,printer swap ,2024-04-04 12:00
+APT-004,owen diaz ,DELIVERY,ALEX COLE,2024-04-13 16:00,scheduled,,2024-04-05T13:30
+APT-005, priya nair ,return pickup,,2024/04/14 10:15,scheduled,confirmation pending,2024/04/05 16:10
+APT-006,ETHAN COLE,Installation,Sam Reed,04/15/2024 08:45,cancelled,customer rescheduled ,2024-04-06T09:20
+APT-007, Nina Cruz, delivery, alex cole ,2024-04-16T13:15:00,scheduled, leave at front desk ,2024-04-06 11:10
+APT-008,Omar Hayes, installation ,sam reed,04/17/2024 15:30,scheduled, requires ladder access ,2024-04-07T08:40
+APT-008,omar hayes ,INSTALL,SAM REED,2024-04-17 15:30,scheduled,requires ladder access,2024-04-07T09:40
+APT-009, paula reed ,return pickup,jo park,2024/04/18 10:00,confirmed,pickup from loading dock ,2024/04/07 12:50
+APT-010,QUINN MURPHY,Delivery,Alex Cole,04/19/2024 17:00,scheduled, signature required ,2024-04-08T08:25
+APT-011, Rita Patel, installation , sam reed ,2024-04-20T09:45:00,scheduled,install premium package,2024-04-08 10:35
+APT-012,Sara Gomez,return pickup,jo park,2024-04-21 14:20,scheduled, verify serial number ,2024-04-08T13:00
+APT-012,sara gomez ,RETURN PICKUP,JO PARK,2024-04-21 14:20,scheduled,verify serial number ,2024-04-08T14:15
+APT-013, theo bennett , delivery ,alex cole,2024/04/22 11:00,confirmed, warehouse pickup window ,2024/04/09 09:05
+APT-014,UMA FOSTER,Installation,Sam Reed,04/23/2024 16:40,scheduled,customer requested evening slot,2024-04-09T12:20
+APT-015, Victor Brooks, returns , jo park ,2024-04-24T08:30:00,scheduled,box missing label ,2024-04-09 15:50
+APT-015,Victor Brooks, returns ,jo park,04/24/2024 08:30,scheduled, box missing label ,2024-04-09T14:20
+APT-016,wendy rivera ,DELIVERY,ALEX COLE,2024-04-25 13:05,scheduled, concierge delivery ,2024-04-10T09:00

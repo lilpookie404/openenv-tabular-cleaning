@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import csv
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
 from .models import ActionType, CaseMode
-from .utils import DATA_DIR
+from .utils import TASKS_DIR
 
 
 @dataclass(frozen=True)
@@ -89,8 +91,12 @@ class TaskDefinition:
         }
 
 
-def _data_path(name: str) -> Path:
-    return DATA_DIR / name
+def _task_dir(task_id: str) -> Path:
+    return TASKS_DIR / task_id
+
+
+def _task_file(task_id: str, filename: str) -> Path:
+    return _task_dir(task_id) / filename
 
 
 COMMON_RISKY_ACTIONS = (
@@ -99,6 +105,9 @@ COMMON_RISKY_ACTIONS = (
     ActionType.CAST_DTYPE,
     ActionType.DROP_DUPLICATES,
 )
+
+INTEGER_RE = re.compile(r"^-?\d+$")
+FLOAT_RE = re.compile(r"^-?\d+\.\d+$")
 
 
 TASKS: Dict[str, TaskDefinition] = {
@@ -113,8 +122,8 @@ TASKS: Dict[str, TaskDefinition] = {
             "emails, customer segments, and signup dates, then validating and publishing a "
             "warehouse-ready contacts table."
         ),
-        input_path=_data_path("easy_input.json"),
-        expected_path=_data_path("easy_expected.json"),
+        input_path=_task_file("easy_contacts_cleanup", "raw.csv"),
+        expected_path=_task_file("easy_contacts_cleanup", "ground_truth.csv"),
         expected_columns=["customer_id", "contact_name", "email", "customer_segment", "signup_date", "phone"],
         required_columns=["customer_id", "contact_name", "email", "customer_segment", "signup_date", "phone"],
         primary_key=["customer_id"],
@@ -152,8 +161,8 @@ TASKS: Dict[str, TaskDefinition] = {
             "reviewing imputed location fields, resolving true duplicates, and publishing an "
             "operations-ready orders dataset."
         ),
-        input_path=_data_path("medium_input.json"),
-        expected_path=_data_path("medium_expected.json"),
+        input_path=_task_file("medium_orders_cleanup", "raw.csv"),
+        expected_path=_task_file("medium_orders_cleanup", "ground_truth.csv"),
         expected_columns=["order_id", "customer_name", "status", "amount", "order_date", "city", "state"],
         required_columns=["order_id", "customer_name", "status", "amount", "order_date", "city", "state"],
         primary_key=["order_id"],
@@ -197,8 +206,8 @@ TASKS: Dict[str, TaskDefinition] = {
             "technician and service-line labels, reviewing imputed values, resolving risky duplicate "
             "conflicts, and publishing an audited service scheduling table."
         ),
-        input_path=_data_path("hard_input.json"),
-        expected_path=_data_path("hard_expected.json"),
+        input_path=_task_file("hard_appointments_cleanup", "raw.csv"),
+        expected_path=_task_file("hard_appointments_cleanup", "ground_truth.csv"),
         expected_columns=[
             "appointment_id",
             "customer_name",
@@ -265,9 +274,27 @@ TASKS: Dict[str, TaskDefinition] = {
 }
 
 
-def load_table(path: Path) -> List[Dict[str, Any]]:
+def _parse_csv_scalar(value: str) -> Any:
+    text = value.strip()
+    if text == "":
+        return ""
+    if INTEGER_RE.match(text):
+        return int(text)
+    if FLOAT_RE.match(text):
+        return float(text)
+    return value
+
+
+def load_table(path: Path, infer_numbers: bool = False) -> List[Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        reader = csv.DictReader(handle)
+        rows = [dict(row) for row in reader]
+    if not infer_numbers:
+        return rows
+    return [
+        {key: _parse_csv_scalar(value) for key, value in row.items()}
+        for row in rows
+    ]
 
 
 def get_task(task_id: str) -> TaskDefinition:
@@ -277,8 +304,14 @@ def get_task(task_id: str) -> TaskDefinition:
 
 
 def load_task_input(task_id: str) -> List[Dict[str, Any]]:
-    return load_table(get_task(task_id).input_path)
+    return load_table(get_task(task_id).input_path, infer_numbers=False)
 
 
 def load_task_expected(task_id: str) -> List[Dict[str, Any]]:
-    return load_table(get_task(task_id).expected_path)
+    return load_table(get_task(task_id).expected_path, infer_numbers=True)
+
+
+def load_task_metadata(task_id: str) -> Dict[str, Any]:
+    path = _task_file(task_id, "metadata.json")
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)

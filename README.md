@@ -70,11 +70,11 @@ Core implementation files:
 
 The benchmark ships exactly 3 tasks with increasing difficulty.
 
-| Task | Difficulty | Source System | What the agent must do |
+| Task | Difficulty | Source System | Rows | What the agent must do |
 |---|---|---|---|
-| `easy_contacts_cleanup` | Easy | CRM customer contacts export | Fix schema drift, normalize names/emails/customer segments, standardize signup dates, fill missing phones, validate, export, publish |
-| `medium_orders_cleanup` | Medium | E-commerce orders export | Normalize statuses and dates, cast amounts, fill missing location fields, remove true duplicates, validate, export, publish |
-| `hard_appointments_cleanup` | Hard | Field-service scheduling export | Normalize technician and service-line labels, standardize timestamps, fill missing values, resolve duplicate conflicts deterministically, validate, export, publish |
+| `easy_contacts_cleanup` | Easy | CRM customer contacts export | `18` raw / `18` gold | Fix schema drift, normalize names/emails/customer segments, standardize signup dates, fill missing phones, validate, export, publish |
+| `medium_orders_cleanup` | Medium | E-commerce orders export | `20` raw / `16` gold | Normalize statuses and dates, cast amounts, fill missing location fields, remove true duplicates, validate, export, publish |
+| `hard_appointments_cleanup` | Hard | Field-service scheduling export | `20` raw / `16` gold | Normalize technician and service-line labels, standardize timestamps, fill missing values, resolve duplicate conflicts deterministically, validate, export, publish |
 
 Step budgets:
 
@@ -84,61 +84,49 @@ Step budgets:
 
 ## Sample Data
 
-All bundled tables live in [data](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data).
-Each task ships with a messy input table and a gold cleaned table:
+All bundled task data now uses a benchmark-style folder structure under [tasks](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks).
+Each task ships with:
 
-- [easy_input.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/easy_input.json)
-- [easy_expected.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/easy_expected.json)
-- [medium_input.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/medium_input.json)
-- [medium_expected.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/medium_expected.json)
-- [hard_input.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/hard_input.json)
-- [hard_expected.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/hard_expected.json)
+- `raw.csv`
+- `ground_truth.csv`
+- `metadata.json`
+
+Task folders:
+
+- [easy_contacts_cleanup](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks/easy_contacts_cleanup)
+- [medium_orders_cleanup](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks/medium_orders_cleanup)
+- [hard_appointments_cleanup](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks/hard_appointments_cleanup)
+
+Current dataset sizes:
+
+- contacts task: `18` raw rows and `18` gold rows
+- orders task: `20` raw rows and `16` gold rows
+- service scheduling task: `20` raw rows and `16` gold rows
 
 Example messy rows:
 
-### CRM Contacts
+### CRM Contacts (`raw.csv`)
 
-```json
-{
-  "customer_id": "C001",
-  "full_name": " alice johnson ",
-  "email": "ALICE.JOHNSON@EXAMPLE.COM ",
-  "customer_segment": " vip ",
-  "signup_date": "2024/01/15",
-  "phone": " 555-0101 "
-}
+```csv
+customer_id,full_name,email,customer_segment,signup_date,phone
+C001," alice johnson ","ALICE.JOHNSON@EXAMPLE.COM "," vip ",2024/01/15," 555-0101 "
 ```
 
-### Orders Export
+### Orders Export (`raw.csv`)
 
-```json
-{
-  "order_id": "ORD-1001",
-  "customer_name": "Ava Patel",
-  "status": " shipped ",
-  "amount": "$120.50",
-  "order_date": "2024/03/01",
-  "city": " Seattle ",
-  "state": "WA"
-}
+```csv
+order_id,customer_name,status,amount,order_date,city,state
+ORD-1001,Ava Patel," shipped ","$120.50",2024/03/01," Seattle ",WA
 ```
 
-### Service Scheduling
+### Service Scheduling (`raw.csv`)
 
-```json
-{
-  "appointment_id": "APT-001",
-  "customer_name": "maya singh ",
-  "service_line": " delivery ",
-  "technician": "alex cole",
-  "appointment_time": "2024/04/10 09:30",
-  "status": "confirmed",
-  "notes": " gate code confirmed ",
-  "updated_at": "2024/04/01 08:00"
-}
+```csv
+appointment_id,customer_name,service_line,technician,appointment_time,status,notes,updated_at
+APT-001,"maya singh "," delivery ",alex cole,"2024/04/10 09:30",confirmed," gate code confirmed ","2024/04/01 08:00"
 ```
 
-These are tiny handcrafted datasets on purpose: they are easy to inspect, deterministic to grade, and small enough to validate quickly in Docker or on Hugging Face Spaces.
+These are curated bundled datasets on purpose: they are large enough to feel like real cleanup work, still deterministic to grade, and still light enough to validate quickly in Docker or on Hugging Face Spaces.
 
 ## Action Space
 

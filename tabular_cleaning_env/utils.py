@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = REPO_ROOT / "data"
+TASKS_DIR = REPO_ROOT / "tasks"
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 

@@ -1,0 +1,45 @@
+{
+  "task_id": "hard_appointments_cleanup",
+  "difficulty": "hard",
+  "domain": "field service operations",
+  "source_system": "field_service_scheduler_export",
+  "rule_pack_name": "service_appointments_cleanup_pack",
+  "description": "Clean a field-service appointments export by standardizing timestamps, normalizing technician and service-line labels, reviewing imputed values, resolving risky duplicate conflicts, and publishing an audited service scheduling table.",
+  "raw_row_count": 20,
+  "ground_truth_row_count": 16,
+  "expected_columns": [
+    "appointment_id",
+    "customer_name",
+    "service_line",
+    "technician",
+    "appointment_time",
+    "status",
+    "notes",
+    "updated_at"
+  ],
+  "required_columns": [
+    "appointment_id",
+    "customer_name",
+    "service_line",
+    "technician",
+    "appointment_time",
+    "status",
+    "notes",
+    "updated_at"
+  ],
+  "primary_key": [
+    "appointment_id"
+  ],
+  "date_columns": {
+    "appointment_time": true,
+    "updated_at": true
+  },
+  "validation_rules": {
+    "required_fields_present": "All required field-service scheduling fields are populated.",
+    "schema_matches": "The cleaned table matches the published service scheduling schema.",
+    "duplicates_resolved": "Appointment business keys are unique.",
+    "timestamps_canonical": "Appointment and update timestamps are canonical ISO values.",
+    "technician_assignments_valid": "Technician fields are populated or intentionally reviewed placeholders."
+  },
+  "max_steps": 15
+}

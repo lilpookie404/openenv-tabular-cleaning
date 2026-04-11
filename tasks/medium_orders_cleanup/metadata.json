@@ -1,0 +1,42 @@
+{
+  "task_id": "medium_orders_cleanup",
+  "difficulty": "medium",
+  "domain": "retail operations",
+  "source_system": "shopify_orders_export",
+  "rule_pack_name": "orders_cleanup_pack",
+  "description": "Clean a retail orders export by standardizing statuses and dates, casting amounts, reviewing imputed location fields, resolving true duplicates, and publishing an operations-ready orders dataset.",
+  "raw_row_count": 20,
+  "ground_truth_row_count": 16,
+  "expected_columns": [
+    "order_id",
+    "customer_name",
+    "status",
+    "amount",
+    "order_date",
+    "city",
+    "state"
+  ],
+  "required_columns": [
+    "order_id",
+    "customer_name",
+    "status",
+    "amount",
+    "order_date",
+    "city",
+    "state"
+  ],
+  "primary_key": [
+    "order_id"
+  ],
+  "date_columns": {
+    "order_date": false
+  },
+  "validation_rules": {
+    "required_fields_present": "All required order fields are populated.",
+    "schema_matches": "The cleaned table matches the published orders schema.",
+    "duplicates_resolved": "Order business keys are unique.",
+    "amounts_numeric_non_negative": "Amounts are numeric and non-negative.",
+    "dates_canonical": "Order dates use the canonical YYYY-MM-DD format."
+  },
+  "max_steps": 15
+}

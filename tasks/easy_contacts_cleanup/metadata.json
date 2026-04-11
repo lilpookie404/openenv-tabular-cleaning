@@ -1,0 +1,39 @@
+{
+  "task_id": "easy_contacts_cleanup",
+  "difficulty": "easy",
+  "domain": "customer operations",
+  "source_system": "crm_customer_contacts_export",
+  "rule_pack_name": "customer_contacts_cleanup_pack",
+  "description": "Clean a CRM customer contacts export by fixing schema drift, normalizing names, emails, customer segments, and signup dates, then validating and publishing a warehouse-ready contacts table.",
+  "raw_row_count": 18,
+  "ground_truth_row_count": 18,
+  "expected_columns": [
+    "customer_id",
+    "contact_name",
+    "email",
+    "customer_segment",
+    "signup_date",
+    "phone"
+  ],
+  "required_columns": [
+    "customer_id",
+    "contact_name",
+    "email",
+    "customer_segment",
+    "signup_date",
+    "phone"
+  ],
+  "primary_key": [
+    "customer_id"
+  ],
+  "date_columns": {
+    "signup_date": false
+  },
+  "validation_rules": {
+    "required_fields_present": "All required customer contact fields are populated.",
+    "schema_matches": "The cleaned table matches the published customer contacts schema.",
+    "dates_canonical": "Signup dates use the canonical YYYY-MM-DD format.",
+    "emails_valid": "Emails are syntactically valid and contain no spaces."
+  },
+  "max_steps": 13
+}

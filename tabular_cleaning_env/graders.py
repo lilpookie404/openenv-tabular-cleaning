@@ -6,19 +6,32 @@ from collections import Counter
 from typing import Any, Dict, List, Sequence
 
 from .tasks import TaskDefinition, load_task_expected
-from .utils import canonical_key, canonical_sort, completeness_score, format_datetime_for_task, ordered_row, stringify
+from .utils import (
+    canonical_key,
+    canonical_sort,
+    completeness_score,
+    format_datetime_for_task,
+    is_canonical_datetime_for_task,
+    ordered_row,
+    stringify,
+)
 
 
-def _normalize_rows_for_task(rows: Sequence[Dict[str, Any]], task: TaskDefinition) -> List[Dict[str, Any]]:
+def _expected_rows_for_task(task: TaskDefinition) -> List[Dict[str, Any]]:
     normalized: List[Dict[str, Any]] = []
-    for row in rows:
+    for row in load_task_expected(task.task_id):
         normalized_row = ordered_row(row, task.expected_columns)
         for column, include_time in task.date_columns.items():
             if column in normalized_row:
                 converted = format_datetime_for_task(normalized_row[column], include_time)
-                normalized_row[column] = converted if converted is not None else normalized_row[column]
+                if converted is not None:
+                    normalized_row[column] = converted
         normalized.append(normalized_row)
     return normalized
+
+
+def _current_rows_for_task(rows: Sequence[Dict[str, Any]], task: TaskDefinition) -> List[Dict[str, Any]]:
+    return [ordered_row(dict(row), task.expected_columns) for row in rows]
 
 
 def _schema_score(rows: Sequence[Dict[str, Any]], task: TaskDefinition) -> float:
@@ -80,19 +93,20 @@ def _temporal_score(
         key = canonical_key(expected_row, task.primary_key)
         current_row = current_by_key.get(key, {})
         for column, include_time in task.date_columns.items():
-            current_value = format_datetime_for_task(current_row.get(column), include_time)
-            expected_value = format_datetime_for_task(expected_row.get(column), include_time)
-            if stringify(current_value) == stringify(expected_value):
+            current_value = current_row.get(column)
+            expected_value = expected_row.get(column)
+            if (
+                stringify(current_value) == stringify(expected_value)
+                and is_canonical_datetime_for_task(current_value, include_time)
+            ):
                 matches += 1
     return matches / total if total else 1.0
 
 
 def grade_table(task: TaskDefinition, rows: Sequence[Dict[str, Any]]) -> Dict[str, float]:
     raw_current_rows = [dict(row) for row in rows]
-    expected_rows = _normalize_rows_for_task(load_task_expected(task.task_id), task)
-    current_rows = _normalize_rows_for_task(rows, task)
-    current_rows = canonical_sort(current_rows, task.primary_key, task.expected_columns)
-    expected_rows = canonical_sort(expected_rows, task.primary_key, task.expected_columns)
+    current_rows = canonical_sort(_current_rows_for_task(rows, task), task.primary_key, task.expected_columns)
+    expected_rows = canonical_sort(_expected_rows_for_task(task), task.primary_key, task.expected_columns)
 
     schema = _schema_score(raw_current_rows, task)
     rows_score = _row_alignment_score(current_rows, expected_rows, task)

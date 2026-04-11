@@ -30,5 +30,21 @@
     "department": "Finance",
     "start_date": "2024-02-18",
     "phone": "UNKNOWN"
+  },
+  {
+    "employee_id": "E005",
+    "name": "Eve Martin",
+    "email": "eve.martin@example.com",
+    "department": "Engineering",
+    "start_date": "2024-02-22",
+    "phone": "555-0105"
+  },
+  {
+    "employee_id": "E006",
+    "name": "Frank Wright",
+    "email": "frank.wright@example.com",
+    "department": "Human Resources",
+    "start_date": "2024-02-25",
+    "phone": "555-0106"
   }
 ]

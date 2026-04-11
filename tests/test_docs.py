@@ -8,3 +8,4 @@ def test_readme_contains_core_commands() -> None:
     assert "openenv validate" in readme
     assert "docker build" in readme
     assert "python3 inference.py" in readme
+    assert "requirements-dev.txt" in readme

@@ -24,14 +24,34 @@ from tabular_cleaning_env.utils import (
     count_non_missing,
     format_datetime_for_task,
     is_missing,
+    looks_like_email,
     stable_json,
+    summarize_rows,
 )
 
 
 class TabularCleaningEnvironment(Environment):
-    """OpenEnv-compatible environment for cleaning messy tabular data."""
+    """OpenEnv-compatible environment for a governed tabular cleanup workflow."""
 
     SUPPORTS_CONCURRENT_SESSIONS = True
+
+    CLEANING_ACTION_TYPES = {
+        ActionType.RENAME_COLUMN,
+        ActionType.STRIP_WHITESPACE,
+        ActionType.NORMALIZE_CASE,
+        ActionType.REPLACE_VALUES,
+        ActionType.STANDARDIZE_DATE,
+        ActionType.FILL_MISSING,
+        ActionType.CAST_DTYPE,
+        ActionType.DROP_DUPLICATES,
+        ActionType.SORT_ROWS,
+    }
+    RISKY_ACTION_TYPES = {
+        ActionType.RENAME_COLUMN,
+        ActionType.FILL_MISSING,
+        ActionType.CAST_DTYPE,
+        ActionType.DROP_DUPLICATES,
+    }
 
     def __init__(self, default_task_id: str = "easy_contacts_cleanup"):
         super().__init__()
@@ -42,6 +62,7 @@ class TabularCleaningEnvironment(Environment):
         self._preview_limit = 5
         self._last_action: Dict[str, Any] | None = None
         self._last_action_error: str | None = None
+        self._change_counter = 0
         self.reset(task_id=default_task_id)
 
     def reset(
@@ -59,22 +80,38 @@ class TabularCleaningEnvironment(Environment):
         self._preview_limit = 5
         self._last_action = None
         self._last_action_error = None
+        self._change_counter = 0
         self._state = TabularCleaningState(
             episode_id=episode_id or str(uuid4()),
             step_count=0,
             task_id=selected_task.task_id,
+            source_system=selected_task.source_system,
             current_table=clone_rows(self._table),
             current_columns=self._current_columns(),
             current_score=initial_grades["score"],
             best_score_so_far=initial_grades["score"],
             submitted=False,
+            published=False,
+            profiled=False,
+            export_ready=False,
+            validation_status="not_run",
             max_steps=selected_task.max_steps,
             task_rules=selected_task.task_rules,
+            transformation_log=[],
+            proposed_changes=[],
+            approved_changes=[],
+            rejected_changes=[],
+            validation_results=[],
+            export_artifacts={},
         )
         return self._build_observation(
             reward=None,
             done=False,
-            metadata={"grader_breakdown": initial_grades, "reset": True},
+            metadata={
+                "grader_breakdown": initial_grades,
+                "reset": True,
+                "workflow": self._workflow_metadata(),
+            },
         )
 
     def step(
@@ -103,30 +140,61 @@ class TabularCleaningEnvironment(Environment):
         error: str | None = None
 
         try:
+            if self._state.proposed_changes and action.action_type in self.CLEANING_ACTION_TYPES:
+                raise ValueError("Approve or reject the pending risky change before applying more data changes.")
+
             if action.action_type == ActionType.INSPECT_TABLE:
                 self._preview_limit = max(1, min(action.preview_rows, 10))
-                info["inspection"] = {
-                    "column_count": len(self._current_columns()),
-                    "row_count": len(self._table),
-                }
+                info["inspection"] = self._inspection_profile()
             elif action.action_type == ActionType.INSPECT_COLUMN:
-                column = self._require_column(action)
-                values = [row.get(column) for row in self._table]
-                unique_values = []
-                seen = set()
-                for value in values:
-                    marker = stable_json(value)
-                    if marker in seen:
-                        continue
-                    seen.add(marker)
-                    unique_values.append(value)
-                    if len(unique_values) == 5:
-                        break
-                info["column_profile"] = {
-                    "column": column,
-                    "missing_count": sum(1 for value in values if is_missing(value)),
-                    "unique_sample": unique_values,
+                info["column_profile"] = self._inspect_column(action)
+            elif action.action_type == ActionType.PROFILE_TABLE:
+                self._state.profiled = True
+                profile = self._profile_table()
+                info["profile"] = profile
+                self._append_workflow_log(
+                    action_type=ActionType.PROFILE_TABLE.value,
+                    status="completed",
+                    reason="profiled_source_export",
+                    details=profile,
+                )
+            elif action.action_type == ActionType.VIEW_CHANGE_SET:
+                info["change_set"] = {
+                    "summary": self._change_set_summary(),
+                    "pending_changes": [self._public_change(change) for change in self._state.proposed_changes],
+                    "approved_changes": self._state.approved_changes[-5:],
                 }
+                self._append_workflow_log(
+                    action_type=ActionType.VIEW_CHANGE_SET.value,
+                    status="completed",
+                    reason="viewed_change_set",
+                    details={"pending_review_count": len(self._state.proposed_changes)},
+                )
+            elif action.action_type == ActionType.RUN_VALIDATIONS:
+                if not self._state.profiled:
+                    raise ValueError("Profile the table before running validations.")
+                if self._state.proposed_changes:
+                    raise ValueError("Approve or reject pending risky changes before validation.")
+                self._run_validations()
+                info["validation_checks"] = clone_rows(self._state.validation_results)
+                self._append_workflow_log(
+                    action_type=ActionType.RUN_VALIDATIONS.value,
+                    status=self._state.validation_status,
+                    reason="validation_run",
+                    details={"export_ready": self._state.export_ready},
+                )
+            elif action.action_type == ActionType.APPROVE_CHANGES:
+                approved = self._approve_changes(action.change_id)
+                info["approved_change_ids"] = [entry["change_id"] for entry in approved]
+            elif action.action_type == ActionType.REJECT_CHANGE:
+                rejected = self._reject_change(action.change_id)
+                info["rejected_change_id"] = rejected["change_id"]
+            elif action.action_type == ActionType.EXPORT_CLEANED_TABLE:
+                artifact = self._export_cleaned_table(action.destination)
+                info["export_destination"] = artifact["destination"]
+            elif action.action_type in {ActionType.PUBLISH_TABLE, ActionType.SUBMIT}:
+                self._publish_table()
+                info["published"] = True
             elif action.action_type == ActionType.RENAME_COLUMN:
                 self._rename_column(action)
             elif action.action_type == ActionType.STRIP_WHITESPACE:
@@ -161,14 +229,20 @@ class TabularCleaningEnvironment(Environment):
                 self._drop_duplicates()
             elif action.action_type == ActionType.SORT_ROWS:
                 self._sort_rows(action.sort_by or list(self._task.primary_key), action.ascending)
-            elif action.action_type == ActionType.SUBMIT:
-                self._state.submitted = True
-                info["submitted"] = True
             else:  # pragma: no cover - protected by enum validation
                 raise ValueError(f"Unsupported action type: {action.action_type}")
         except ValueError as exc:
             error = str(exc)
             self._table = before_table
+
+        if error is None and action.action_type in self.CLEANING_ACTION_TYPES:
+            if self._table != before_table:
+                self._invalidate_delivery_state()
+                change_record = self._record_transformation(action, before_table)
+                if change_record is not None:
+                    info["change_record"] = change_record
+            else:
+                info["penalty_type"] = "no_op"
 
         grades = grade_table(self._task, self._table)
         self._state.current_table = clone_rows(self._table)
@@ -177,13 +251,7 @@ class TabularCleaningEnvironment(Environment):
         reward = 0.0
 
         if error is None:
-            if self._table == before_table and action.action_type not in {
-                ActionType.INSPECT_TABLE,
-                ActionType.INSPECT_COLUMN,
-                ActionType.SUBMIT,
-            }:
-                info["penalty_type"] = "no_op"
-            elif grades["score"] < previous_score:
+            if grades["score"] < previous_score:
                 info["penalty_type"] = "destructive"
             reward = max(0.0, round(grades["score"] - previous_best, 6))
             self._state.best_score_so_far = max(previous_best, grades["score"])
@@ -202,6 +270,7 @@ class TabularCleaningEnvironment(Environment):
         info["grader_breakdown"] = grades
         info["score_before_action"] = previous_score
         info["score_after_action"] = self._state.current_score
+        info["workflow"] = self._workflow_metadata()
 
         return self._build_observation(
             reward=reward,
@@ -218,10 +287,10 @@ class TabularCleaningEnvironment(Environment):
         return {
             "name": "tabular_cleaning_env",
             "description": (
-                "A deterministic OpenEnv benchmark where agents clean real-world style "
-                "messy tables using a structured action space."
+                "A deterministic OpenEnv workbench for operational tabular cleanup with "
+                "audit logs, human review, validation gates, and export/publish workflow."
             ),
-            "version": "0.1.0",
+            "version": "0.2.0",
             "author": "OpenEnv Hackathon Submission",
         }
 
@@ -235,11 +304,21 @@ class TabularCleaningEnvironment(Environment):
         self._last_action_error = error
         return TabularCleaningObservation(
             task_id=self._task.task_id,
+            difficulty=self._task.difficulty,
+            source_system=self._task.source_system,
             task_description=self._task.description,
+            task_rules=self._task.task_rules,
             table_columns=self._current_columns(),
             table_rows_preview=clone_rows(self._table[: self._preview_limit]),
             row_count=len(self._table),
             issues_summary=self._issues_summary(),
+            change_set_summary=self._change_set_summary(),
+            proposed_changes_summary=[self._public_change(change) for change in self._state.proposed_changes],
+            risky_changes=[self._public_change(change) for change in self._state.proposed_changes],
+            validation_status=self._state.validation_status,
+            validation_checks=clone_rows(self._state.validation_results),
+            audit_log_preview=clone_rows(self._state.transformation_log[-5:]),
+            export_ready=self._state.export_ready,
             last_action=deepcopy(self._last_action),
             last_action_error=error,
             steps_taken=self._state.step_count,
@@ -255,6 +334,419 @@ class TabularCleaningEnvironment(Environment):
         if not self._table:
             return list(self._task.expected_columns)
         return list(self._table[0].keys())
+
+    def _inspection_profile(self) -> Dict[str, Any]:
+        return {
+            "column_count": len(self._current_columns()),
+            "row_count": len(self._table),
+            "missing_by_column": {
+                column: sum(1 for row in self._table if is_missing(row.get(column)))
+                for column in self._current_columns()
+            },
+            "duplicate_key_count": self._duplicate_key_count(),
+            "date_columns": dict(self._task.date_columns),
+            "normalization_columns": list(self._task.normalization_hints.keys()),
+            "rule_pack_name": self._task.rule_pack_name,
+            "source_system": self._task.source_system,
+        }
+
+    def _inspect_column(self, action: TabularCleaningAction) -> Dict[str, Any]:
+        column = self._require_column(action)
+        values = [row.get(column) for row in self._table]
+        unique_values = []
+        seen = set()
+        for value in values:
+            marker = stable_json(value)
+            if marker in seen:
+                continue
+            seen.add(marker)
+            unique_values.append(value)
+            if len(unique_values) == 5:
+                break
+        return {
+            "column": column,
+            "missing_count": sum(1 for value in values if is_missing(value)),
+            "distinct_count": len({stable_json(value) for value in values}),
+            "unique_sample": unique_values,
+            "normalization_hints": self._task.normalization_hints.get(column, {}),
+            "recommended_fill": self._task.fill_defaults.get(column),
+            "recommended_case": self._task.case_columns.get(column).value
+            if column in self._task.case_columns
+            else None,
+            "expected_dtype": self._task.cast_columns.get(column),
+            "canonical_datetime": column in self._task.date_columns,
+        }
+
+    def _profile_table(self) -> Dict[str, Any]:
+        suggested = self._suggested_changes()
+        return {
+            "source_system": self._task.source_system,
+            "rule_pack_name": self._task.rule_pack_name,
+            "row_count": len(self._table),
+            "column_count": len(self._current_columns()),
+            "issues_summary": self._issues_summary()[:4],
+            "suggested_safe_actions": suggested["safe"],
+            "suggested_risky_actions": suggested["risky"],
+            "validation_rules": clone_rows(
+                [
+                    {"check_id": check_id, "description": description}
+                    for check_id, description in self._task.validation_rules.items()
+                ]
+            ),
+        }
+
+    def _change_set_summary(self) -> Dict[str, Any]:
+        suggested = self._suggested_changes()
+        return {
+            "profiled": self._state.profiled,
+            "pending_review_count": len(self._state.proposed_changes),
+            "approved_count": len(self._state.approved_changes),
+            "rejected_count": len(self._state.rejected_changes),
+            "has_export_artifact": bool(self._state.export_artifacts),
+            "published": self._state.published,
+            "next_stage": self._next_stage(),
+            "suggested_safe_actions": suggested["safe"],
+            "suggested_risky_actions": suggested["risky"],
+        }
+
+    def _workflow_metadata(self) -> Dict[str, Any]:
+        return {
+            "next_stage": self._next_stage(),
+            "validation_status": self._state.validation_status,
+            "pending_review_count": len(self._state.proposed_changes),
+            "export_ready": self._state.export_ready,
+            "published": self._state.published,
+        }
+
+    def _next_stage(self) -> str:
+        if self._state.published:
+            return "completed"
+        if not self._state.profiled:
+            return "profile"
+        if self._state.proposed_changes:
+            return "review"
+        if self._has_cleaning_issues():
+            return "clean"
+        if self._state.validation_status != "passed":
+            return "validate"
+        if not self._state.export_artifacts:
+            return "export"
+        return "publish"
+
+    def _invalidate_delivery_state(self) -> None:
+        self._state.validation_status = "not_run"
+        self._state.validation_results = []
+        self._state.export_artifacts = {}
+        self._state.export_ready = False
+        self._state.published = False
+
+    def _record_transformation(
+        self,
+        action: TabularCleaningAction,
+        before_table: Sequence[Dict[str, Any]],
+    ) -> Dict[str, Any] | None:
+        if self._table == before_table:
+            return None
+        profile = self._risk_profile(action)
+        summary_before = self._table_summary(before_table)
+        summary_after = self._table_summary(self._table)
+        affected = self._change_footprint(before_table, self._table)
+        base_entry = {
+            "change_id": self._next_change_id(),
+            "step": self._state.step_count,
+            "action_type": action.action_type.value,
+            "risk_category": profile["risk_category"],
+            "confidence": profile["confidence"],
+            "reason": profile["reason"],
+            "affected_columns": affected["columns"],
+            "affected_row_count": affected["row_count"],
+            "before_summary": summary_before,
+            "after_summary": summary_after,
+            "review_required": profile["review_required"],
+            "source": "agent",
+        }
+        if profile["review_required"]:
+            pending_entry = {
+                **base_entry,
+                "status": "pending_review",
+                "snapshot_before": clone_rows(before_table),
+                "snapshot_after": clone_rows(self._table),
+            }
+            self._state.proposed_changes.append(pending_entry)
+            self._state.transformation_log.append(self._public_change(pending_entry))
+            return self._public_change(pending_entry)
+
+        auto_entry = {**base_entry, "status": "auto_applied"}
+        self._state.transformation_log.append(auto_entry)
+        return auto_entry
+
+    def _approve_changes(self, change_id: str | None) -> List[Dict[str, Any]]:
+        if not self._state.proposed_changes:
+            raise ValueError("No risky changes are waiting for approval.")
+
+        if change_id is None:
+            pending = list(self._state.proposed_changes)
+        else:
+            pending = [change for change in self._state.proposed_changes if change["change_id"] == change_id]
+            if not pending:
+                raise ValueError(f"Unknown pending change: {change_id}")
+
+        approved_entries: List[Dict[str, Any]] = []
+        for change in pending:
+            self._state.proposed_changes.remove(change)
+            approved = {
+                **self._public_change(change),
+                "status": "approved",
+                "reviewed_at_step": self._state.step_count,
+            }
+            self._state.approved_changes.append(approved)
+            approved_entries.append(approved)
+        self._state.transformation_log.append(
+            {
+                "change_id": f"audit-{self._state.step_count:03d}",
+                "step": self._state.step_count,
+                "action_type": ActionType.APPROVE_CHANGES.value,
+                "status": "completed",
+                "reviewed_change_ids": [entry["change_id"] for entry in approved_entries],
+                "reason": "human_approved_risky_changes",
+            }
+        )
+        return approved_entries
+
+    def _reject_change(self, change_id: str | None) -> Dict[str, Any]:
+        if not self._state.proposed_changes:
+            raise ValueError("No risky changes are waiting for rejection.")
+
+        target = self._state.proposed_changes[-1]
+        if change_id is not None and target["change_id"] != change_id:
+            raise ValueError("Only the latest pending risky change can be rejected deterministically.")
+
+        self._table = clone_rows(target["snapshot_before"])
+        self._state.current_table = clone_rows(self._table)
+        self._state.current_columns = self._current_columns()
+        self._state.proposed_changes.pop()
+        self._invalidate_delivery_state()
+        rejected = {
+            **self._public_change(target),
+            "status": "rejected",
+            "reviewed_at_step": self._state.step_count,
+        }
+        self._state.rejected_changes.append(rejected)
+        self._state.transformation_log.append(
+            {
+                "change_id": f"audit-{self._state.step_count:03d}",
+                "step": self._state.step_count,
+                "action_type": ActionType.REJECT_CHANGE.value,
+                "status": "completed",
+                "reviewed_change_ids": [rejected["change_id"]],
+                "reason": "human_rejected_risky_change",
+            }
+        )
+        return rejected
+
+    def _run_validations(self) -> None:
+        results: List[Dict[str, Any]] = []
+        for check_id, description in self._task.validation_rules.items():
+            passed, detail = self._evaluate_validation_rule(check_id)
+            results.append(
+                {
+                    "check_id": check_id,
+                    "description": description,
+                    "status": "passed" if passed else "failed",
+                    "severity": "error",
+                    "detail": detail,
+                }
+            )
+        self._state.validation_results = results
+        self._state.validation_status = "passed" if all(item["status"] == "passed" for item in results) else "failed"
+        self._state.export_ready = self._state.validation_status == "passed" and not self._state.proposed_changes
+
+    def _evaluate_validation_rule(self, check_id: str) -> tuple[bool, str]:
+        current_columns = self._current_columns()
+        if check_id == "required_fields_present":
+            missing = [
+                (index, column)
+                for index, row in enumerate(self._table)
+                for column in self._task.required_columns
+                if column in row and is_missing(row.get(column))
+            ]
+            if missing:
+                return False, f"{len(missing)} required cells are still missing."
+            return True, "All required fields are populated."
+        if check_id == "schema_matches":
+            passed = current_columns == list(self._task.expected_columns)
+            return passed, "Schema matches expected export." if passed else "Schema does not match expected export."
+        if check_id == "duplicates_resolved":
+            duplicates = self._duplicate_key_count()
+            return duplicates == 0, "Business keys are unique." if duplicates == 0 else f"{duplicates} duplicate rows remain."
+        if check_id in {"dates_canonical", "timestamps_canonical"}:
+            failing = []
+            for column, include_time in self._task.date_columns.items():
+                for row in self._table:
+                    value = row.get(column)
+                    if is_missing(value):
+                        continue
+                    canonical = format_datetime_for_task(value, include_time)
+                    if canonical is None or str(value) != canonical:
+                        failing.append(column)
+                        break
+            if failing:
+                return False, f"Canonical date formatting still missing in: {', '.join(sorted(set(failing)))}."
+            return True, "Date and timestamp fields are canonical."
+        if check_id == "emails_valid":
+            invalid = [row.get("email") for row in self._table if not looks_like_email(row.get("email"))]
+            return not invalid, "Emails are valid." if not invalid else f"{len(invalid)} invalid emails remain."
+        if check_id == "amounts_numeric_non_negative":
+            invalid = [
+                row.get("amount")
+                for row in self._table
+                if not isinstance(row.get("amount"), (int, float)) or float(row.get("amount")) < 0
+            ]
+            return not invalid, "Amounts are numeric and non-negative." if not invalid else "Some amounts are invalid."
+        if check_id == "doctor_assignments_valid":
+            invalid = [row.get("doctor") for row in self._table if is_missing(row.get("doctor"))]
+            return not invalid, "Doctor assignments are populated or intentionally reviewed." if not invalid else "Some doctor fields are still blank."
+        return True, "Validation rule not implemented explicitly; treated as passed."
+
+    def _export_cleaned_table(self, destination: str | None) -> Dict[str, Any]:
+        if self._state.proposed_changes:
+            raise ValueError("Approve or reject pending risky changes before export.")
+        if self._state.validation_status != "passed":
+            raise ValueError("Run validations successfully before export.")
+        export_destination = destination or self._task.default_export_destination
+        artifact = {
+            "artifact_id": f"{self._task.task_id}-artifact-{self._state.step_count:03d}",
+            "destination": export_destination,
+            "cleaned_table": clone_rows(self._table),
+            "data_quality_report": {
+                "task_id": self._task.task_id,
+                "source_system": self._task.source_system,
+                "score": round(self._state.current_score, 6),
+                "validation_status": self._state.validation_status,
+                "validation_checks": clone_rows(self._state.validation_results),
+            },
+            "transformation_audit_log": clone_rows(self._state.transformation_log),
+        }
+        self._state.export_artifacts = artifact
+        self._state.export_ready = True
+        self._state.transformation_log.append(
+            {
+                "change_id": f"audit-{self._state.step_count:03d}",
+                "step": self._state.step_count,
+                "action_type": ActionType.EXPORT_CLEANED_TABLE.value,
+                "status": "completed",
+                "destination": export_destination,
+                "reason": "exported_clean_table",
+            }
+        )
+        return artifact
+
+    def _publish_table(self) -> None:
+        if self._state.proposed_changes:
+            raise ValueError("Approve or reject pending risky changes before publishing.")
+        if not self._state.export_artifacts:
+            raise ValueError("Export the cleaned table before publishing.")
+        self._state.published = True
+        self._state.submitted = True
+        self._state.transformation_log.append(
+            {
+                "change_id": f"audit-{self._state.step_count:03d}",
+                "step": self._state.step_count,
+                "action_type": ActionType.PUBLISH_TABLE.value,
+                "status": "completed",
+                "destination": self._state.export_artifacts.get("destination"),
+                "reason": "published_clean_table",
+            }
+        )
+
+    def _public_change(self, change: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            key: deepcopy(value)
+            for key, value in change.items()
+            if key not in {"snapshot_before", "snapshot_after"}
+        }
+
+    def _append_workflow_log(
+        self,
+        action_type: str,
+        status: str,
+        reason: str,
+        details: Dict[str, Any] | None = None,
+    ) -> None:
+        entry = {
+            "change_id": f"audit-{self._state.step_count:03d}-{len(self._state.transformation_log):02d}",
+            "step": self._state.step_count,
+            "action_type": action_type,
+            "status": status,
+            "reason": reason,
+        }
+        if details:
+            entry["details"] = deepcopy(details)
+        self._state.transformation_log.append(entry)
+
+    def _risk_profile(self, action: TabularCleaningAction) -> Dict[str, Any]:
+        if action.action_type == ActionType.RENAME_COLUMN:
+            return {
+                "review_required": True,
+                "risk_category": "high",
+                "confidence": 0.74,
+                "reason": "Renaming a column changes downstream schema mappings.",
+            }
+        if action.action_type == ActionType.FILL_MISSING:
+            return {
+                "review_required": True,
+                "risk_category": "medium",
+                "confidence": 0.72,
+                "reason": "Imputing missing values changes source completeness.",
+            }
+        if action.action_type == ActionType.CAST_DTYPE:
+            return {
+                "review_required": True,
+                "risk_category": "medium",
+                "confidence": 0.78,
+                "reason": "Type casting can coerce ambiguous raw values.",
+            }
+        if action.action_type == ActionType.DROP_DUPLICATES:
+            return {
+                "review_required": True,
+                "risk_category": "high",
+                "confidence": 0.66,
+                "reason": "Dropping duplicates removes rows from the source export.",
+            }
+        return {
+            "review_required": False,
+            "risk_category": "low",
+            "confidence": 0.97,
+            "reason": "Normalization-only change with low downstream risk.",
+        }
+
+    def _table_summary(self, rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+        duplicate_fields = self._task.duplicate_rule.key_fields if self._task.duplicate_rule else ()
+        return summarize_rows(rows, self._task.required_columns, duplicate_fields)
+
+    def _change_footprint(
+        self,
+        before_rows: Sequence[Dict[str, Any]],
+        after_rows: Sequence[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        max_len = max(len(before_rows), len(after_rows))
+        changed_rows = 0
+        changed_columns = set()
+        for index in range(max_len):
+            before = before_rows[index] if index < len(before_rows) else {}
+            after = after_rows[index] if index < len(after_rows) else {}
+            if stable_json(before) == stable_json(after):
+                continue
+            changed_rows += 1
+            changed_columns.update(set(before.keys()) | set(after.keys()))
+            for column in set(before.keys()) | set(after.keys()):
+                if before.get(column) != after.get(column):
+                    changed_columns.add(column)
+        return {"row_count": changed_rows, "columns": sorted(changed_columns)}
+
+    def _next_change_id(self) -> str:
+        self._change_counter += 1
+        return f"chg-{self._change_counter:03d}"
 
     def _require_column(self, action: TabularCleaningAction) -> str:
         if not action.column:
@@ -367,7 +859,9 @@ class TabularCleaningEnvironment(Environment):
             rows,
             key=lambda row: (
                 count_non_missing(row, rule.completeness_fields),
-                format_datetime_for_task(row.get(rule.latest_timestamp_field), True) if rule.latest_timestamp_field else "",
+                format_datetime_for_task(row.get(rule.latest_timestamp_field), True)
+                if rule.latest_timestamp_field
+                else "",
                 stable_json(row),
             ),
             reverse=True,
@@ -382,6 +876,52 @@ class TabularCleaningEnvironment(Environment):
             key=lambda row: tuple("" if row.get(column) is None else str(row.get(column)) for column in sort_by),
             reverse=not ascending,
         )
+
+    def _suggested_changes(self) -> Dict[str, List[str]]:
+        current_columns = self._current_columns()
+        safe: List[str] = []
+        risky: List[str] = []
+
+        if current_columns != list(self._task.expected_columns) and any(
+            source in current_columns and target not in current_columns for source, target in self._task.rename_map.items()
+        ):
+            risky.append(ActionType.RENAME_COLUMN.value)
+        if any(
+            isinstance(row.get(column), str) and row.get(column) != row.get(column).strip()
+            for row in self._table
+            for column in current_columns
+        ):
+            safe.append(ActionType.STRIP_WHITESPACE.value)
+        if self._task.case_columns:
+            for column in self._task.case_columns:
+                if column in current_columns:
+                    safe.append(f"{ActionType.NORMALIZE_CASE.value}:{column}")
+        if self._task.normalization_hints:
+            for column in self._task.normalization_hints:
+                if column in current_columns:
+                    safe.append(f"{ActionType.REPLACE_VALUES.value}:{column}")
+        if self._task.date_columns:
+            safe.append(ActionType.STANDARDIZE_DATE.value)
+        if self._task.fill_defaults:
+            risky.extend(f"{ActionType.FILL_MISSING.value}:{column}" for column in self._task.fill_defaults if column in current_columns)
+        if self._task.cast_columns:
+            risky.extend(f"{ActionType.CAST_DTYPE.value}:{column}" for column in self._task.cast_columns if column in current_columns)
+        if self._task.duplicate_rule is not None and self._duplicate_key_count():
+            risky.append(ActionType.DROP_DUPLICATES.value)
+        return {
+            "safe": list(dict.fromkeys(safe)),
+            "risky": list(dict.fromkeys(risky)),
+        }
+
+    def _has_cleaning_issues(self) -> bool:
+        return any(issue.startswith(prefix) for issue in self._issues_summary() for prefix in [
+            "Schema does not match",
+            "Whitespace cleanup",
+            "Value normalization",
+            "Date normalization",
+            "Required fields",
+            "Duplicate business keys",
+        ])
 
     def _issues_summary(self) -> List[str]:
         issues: List[str] = []
@@ -404,15 +944,11 @@ class TabularCleaningEnvironment(Environment):
             if column in row and is_missing(row.get(column))
         )
         if missing_count:
-            issues.append(f"{missing_count} required cells are still missing values.")
+            issues.append(f"Required fields are still missing in {missing_count} cells.")
 
-        if self._task.duplicate_rule is not None:
-            duplicate_counts = Counter(
-                canonical_key(row, self._task.duplicate_rule.key_fields) for row in self._table
-            )
-            duplicates = sum(count - 1 for count in duplicate_counts.values() if count > 1)
-            if duplicates:
-                issues.append("Duplicate business keys still need to be resolved.")
+        duplicates = self._duplicate_key_count()
+        if duplicates:
+            issues.append("Duplicate business keys still need to be resolved.")
 
         date_issues = []
         for column, include_time in self._task.date_columns.items():
@@ -427,7 +963,7 @@ class TabularCleaningEnvironment(Environment):
                     date_issues.append(column)
                     break
         if date_issues:
-            issues.append(f"Date normalization is still needed in: {', '.join(date_issues)}.")
+            issues.append(f"Date normalization is still needed in: {', '.join(sorted(set(date_issues)))}.")
 
         for column, mapping in self._task.normalization_hints.items():
             if column not in current_columns:
@@ -441,6 +977,28 @@ class TabularCleaningEnvironment(Environment):
                 issues.append(f"Value normalization is still needed in column '{column}'.")
                 break
 
-        if not issues:
-            issues.append("Table looks clean. Submit when you are confident.")
-        return issues[:6]
+        if self._state.proposed_changes:
+            issues.append("Pending risky changes must be approved or rejected before validation.")
+        elif not issues:
+            if not self._state.profiled:
+                issues.append("Profile the table to inspect the source export and suggested change set.")
+            elif self._state.validation_status == "not_run":
+                issues.append("Run validations before export.")
+            elif self._state.validation_status == "failed":
+                issues.append("Validation failures block export and publish.")
+            elif not self._state.export_artifacts:
+                issues.append("Validation passed. Export the cleaned table.")
+            elif not self._state.published:
+                issues.append("Export complete. Publish the cleaned table.")
+            else:
+                issues.append("Table has been published with validation and audit artifacts.")
+
+        return issues[:8]
+
+    def _duplicate_key_count(self) -> int:
+        if self._task.duplicate_rule is None:
+            return 0
+        duplicate_counts = Counter(
+            canonical_key(row, self._task.duplicate_rule.key_fields) for row in self._table
+        )
+        return sum(count - 1 for count in duplicate_counts.values() if count > 1)

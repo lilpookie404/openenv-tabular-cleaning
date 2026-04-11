@@ -5,7 +5,7 @@
     "status": " shipped ",
     "amount": "$120.50",
     "order_date": "2024/03/01",
-    "city": "Seattle",
+    "city": " Seattle ",
     "state": "WA"
   },
   {
@@ -43,5 +43,23 @@
     "order_date": "2024-03-04",
     "city": "Denver",
     "state": "CO"
+  },
+  {
+    "order_id": "ORD-1005",
+    "customer_name": "Ravi Shah",
+    "status": " shipped ",
+    "amount": "1,005.75",
+    "order_date": "2024/03/05",
+    "city": "San Jose ",
+    "state": "CA"
+  },
+  {
+    "order_id": "ORD-1006",
+    "customer_name": "Zoe Hart",
+    "status": " pending ",
+    "amount": "$58.40",
+    "order_date": "03/06/2024",
+    "city": "Portland",
+    "state": "OR"
   }
 ]

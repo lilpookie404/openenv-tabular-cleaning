@@ -11,7 +11,7 @@
     "employee_id": "E002",
     "full_name": "BOB SMITH",
     "email": " bob.smith@example.com",
-    "department": "Human Resources",
+    "department": " Human Resources ",
     "start_date": "01/20/2024",
     "phone": ""
   },
@@ -19,7 +19,7 @@
     "employee_id": "E003",
     "full_name": " Carla Gomez",
     "email": "carla.gomez@example.com ",
-    "department": "Eng",
+    "department": " eng ",
     "start_date": "2024-02-05",
     "phone": "555-0103"
   },
@@ -28,7 +28,23 @@
     "full_name": "david lee ",
     "email": " DAVID.LEE@example.com",
     "department": "Finance ",
-    "start_date": "2024-02-18",
+    "start_date": "18-02-2024",
     "phone": null
+  },
+  {
+    "employee_id": "E005",
+    "full_name": " eve MARTIN ",
+    "email": "EVE.MARTIN@EXAMPLE.COM ",
+    "department": " engineering ",
+    "start_date": "2024/02/22",
+    "phone": " 555-0105 "
+  },
+  {
+    "employee_id": "E006",
+    "full_name": "frank wright",
+    "email": " FRANK.WRIGHT@example.com ",
+    "department": " hr",
+    "start_date": "02/25/2024",
+    "phone": "555-0106"
   }
 ]

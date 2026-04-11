@@ -13,10 +13,10 @@
     "appointment_id": "APT-002",
     "patient_name": "JONAH PRICE",
     "department": "Orthopedics",
-    "doctor": "",
+    "doctor": "dr omar reed",
     "appointment_time": "04/11/2024 14:00",
     "status": "checked_in",
-    "notes": "",
+    "notes": " follow-up visit ",
     "updated_at": "2024-04-02T09:15"
   },
   {
@@ -26,7 +26,7 @@
     "doctor": "omar reed",
     "appointment_time": "2024-04-11 14:00",
     "status": "checked_in",
-    "notes": "follow-up visit",
+    "notes": " follow-up visit ",
     "updated_at": "2024-04-03T10:00"
   },
   {
@@ -50,13 +50,23 @@
     "updated_at": "2024-04-05 13:30"
   },
   {
-    "appointment_id": "APT-004",
-    "patient_name": " owen diaz ",
-    "department": "cardio",
-    "doctor": "dr anne li",
-    "appointment_time": "2024/04/13 16:00",
+    "appointment_id": "APT-005",
+    "patient_name": "priya nair",
+    "department": " neurology ",
+    "doctor": "",
+    "appointment_time": "04/14/2024 10:15",
     "status": "scheduled",
-    "notes": " ",
-    "updated_at": "2024/04/05 13:00"
+    "notes": " lab results pending ",
+    "updated_at": "2024/04/05 16:10"
+  },
+  {
+    "appointment_id": "APT-006",
+    "patient_name": " ETHAN COLE ",
+    "department": "ortho",
+    "doctor": "dr omar reed",
+    "appointment_time": "2024/04/15 08:45",
+    "status": "cancelled",
+    "notes": " patient rescheduled ",
+    "updated_at": "2024-04-06T09:20"
   }
 ]

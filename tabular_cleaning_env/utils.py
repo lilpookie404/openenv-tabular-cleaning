@@ -6,11 +6,13 @@ import json
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def clone_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -99,6 +101,13 @@ def format_datetime_for_task(value: Any, include_time: bool) -> Optional[str]:
     return parsed.strftime("%Y-%m-%d")
 
 
+def is_canonical_datetime_for_task(value: Any, include_time: bool) -> bool:
+    canonical = format_datetime_for_task(value, include_time)
+    if canonical is None:
+        return False
+    return str(value).strip() == canonical
+
+
 def completeness_score(rows: Sequence[Dict[str, Any]], required_columns: Sequence[str]) -> float:
     if not rows or not required_columns:
         return 1.0
@@ -131,3 +140,35 @@ def coerce_dtype(value: Any, dtype: str) -> Any:
             return None
         return int(float(text))
     raise ValueError(f"Unsupported dtype: {dtype}")
+
+
+def looks_like_email(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    return bool(EMAIL_RE.match(value.strip()))
+
+
+def summarize_rows(
+    rows: Sequence[Dict[str, Any]],
+    required_columns: Sequence[str],
+    duplicate_key_fields: Sequence[str] | None = None,
+) -> Dict[str, Any]:
+    duplicate_fields = list(duplicate_key_fields or [])
+    duplicate_count = 0
+    if duplicate_fields:
+        counts = {}
+        for row in rows:
+            key = canonical_key(row, duplicate_fields)
+            counts[key] = counts.get(key, 0) + 1
+        duplicate_count = sum(count - 1 for count in counts.values() if count > 1)
+    return {
+        "row_count": len(rows),
+        "column_count": len(rows[0]) if rows else 0,
+        "missing_required_cells": sum(
+            1
+            for row in rows
+            for column in required_columns
+            if column in row and is_missing(row.get(column))
+        ),
+        "duplicate_count": duplicate_count,
+    }

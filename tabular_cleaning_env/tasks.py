@@ -1,4 +1,4 @@
-"""Bundled tabular cleaning tasks and deterministic policies."""
+"""Bundled tabular cleaning tasks and deterministic metadata."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
-from .models import ActionType, CaseMode, TabularCleaningAction
+from .models import ActionType, CaseMode
 from .utils import DATA_DIR
 
 
@@ -22,6 +22,9 @@ class DuplicateRule:
 class TaskDefinition:
     task_id: str
     difficulty: str
+    domain: str
+    source_system: str
+    rule_pack_name: str
     description: str
     input_path: Path
     expected_path: Path
@@ -34,20 +37,46 @@ class TaskDefinition:
     fill_defaults: Dict[str, str] = field(default_factory=dict)
     cast_columns: Dict[str, str] = field(default_factory=dict)
     case_columns: Dict[str, CaseMode] = field(default_factory=dict)
-    max_steps: int = 8
+    recommended_sort: Sequence[str] = field(default_factory=tuple)
+    validation_rules: Dict[str, str] = field(default_factory=dict)
+    risky_action_types: Sequence[ActionType] = field(default_factory=tuple)
+    default_export_destination: str = "warehouse_ready_json"
+    max_steps: int = 12
     duplicate_rule: DuplicateRule | None = None
+
+    @property
+    def safe_action_types(self) -> List[str]:
+        candidates = [
+            ActionType.STRIP_WHITESPACE,
+            ActionType.NORMALIZE_CASE,
+            ActionType.REPLACE_VALUES,
+            ActionType.STANDARDIZE_DATE,
+            ActionType.SORT_ROWS,
+        ]
+        risky = {action.value for action in self.risky_action_types}
+        return [action.value for action in candidates if action.value not in risky]
 
     @property
     def task_rules(self) -> Dict[str, Any]:
         return {
+            "source_system": self.source_system,
+            "rule_pack_name": self.rule_pack_name,
             "expected_columns": list(self.expected_columns),
             "required_columns": list(self.required_columns),
             "primary_key": list(self.primary_key),
             "date_columns": dict(self.date_columns),
             "rename_map": dict(self.rename_map),
+            "normalization_hints": {
+                column: dict(mapping) for column, mapping in self.normalization_hints.items()
+            },
             "fill_defaults": dict(self.fill_defaults),
             "cast_columns": dict(self.cast_columns),
             "case_columns": {key: value.value for key, value in self.case_columns.items()},
+            "recommended_sort": list(self.recommended_sort or self.primary_key),
+            "validation_rules": dict(self.validation_rules),
+            "safe_action_types": list(self.safe_action_types),
+            "risky_action_types": [action.value for action in self.risky_action_types],
+            "default_export_destination": self.default_export_destination,
             "duplicate_rule": (
                 {
                     "key_fields": list(self.duplicate_rule.key_fields),
@@ -64,13 +93,25 @@ def _data_path(name: str) -> Path:
     return DATA_DIR / name
 
 
+COMMON_RISKY_ACTIONS = (
+    ActionType.RENAME_COLUMN,
+    ActionType.FILL_MISSING,
+    ActionType.CAST_DTYPE,
+    ActionType.DROP_DUPLICATES,
+)
+
+
 TASKS: Dict[str, TaskDefinition] = {
     "easy_contacts_cleanup": TaskDefinition(
         task_id="easy_contacts_cleanup",
         difficulty="easy",
+        domain="employee operations",
+        source_system="workday_hr_contacts_export",
+        rule_pack_name="contacts_cleanup_pack",
         description=(
-            "Clean a small employee contact table by renaming columns, trimming whitespace, "
-            "normalizing department labels and dates, and filling constant missing values."
+            "Clean an employee contact export from an HR/CRM workflow by fixing schema drift, "
+            "normalizing names, emails, departments, and dates, then validating and publishing "
+            "a warehouse-ready contacts table."
         ),
         input_path=_data_path("easy_input.json"),
         expected_path=_data_path("easy_expected.json"),
@@ -90,14 +131,27 @@ TASKS: Dict[str, TaskDefinition] = {
         },
         fill_defaults={"phone": "UNKNOWN"},
         case_columns={"name": CaseMode.TITLE, "email": CaseMode.LOWER},
-        max_steps=8,
+        recommended_sort=("employee_id",),
+        validation_rules={
+            "required_fields_present": "All required contact fields are populated.",
+            "schema_matches": "The cleaned table matches the published contacts schema.",
+            "dates_canonical": "Start dates use the canonical YYYY-MM-DD format.",
+            "emails_valid": "Emails are syntactically valid and contain no spaces.",
+        },
+        risky_action_types=(ActionType.RENAME_COLUMN, ActionType.FILL_MISSING),
+        default_export_destination="contacts_warehouse_ready_json",
+        max_steps=13,
     ),
     "medium_orders_cleanup": TaskDefinition(
         task_id="medium_orders_cleanup",
         difficulty="medium",
+        domain="retail operations",
+        source_system="shopify_orders_export",
+        rule_pack_name="orders_cleanup_pack",
         description=(
-            "Clean a retail orders table by normalizing statuses and dates, casting amounts, "
-            "filling missing city/state values, and removing only true duplicates."
+            "Clean a retail orders export by standardizing statuses and dates, casting amounts, "
+            "reviewing imputed location fields, resolving true duplicates, and publishing an "
+            "operations-ready orders dataset."
         ),
         input_path=_data_path("medium_input.json"),
         expected_path=_data_path("medium_expected.json"),
@@ -109,7 +163,6 @@ TASKS: Dict[str, TaskDefinition] = {
             "status": {
                 " shipped ": "shipped",
                 "shipped": "shipped",
-                "shipped": "shipped",
                 "pending": "pending",
                 " pending ": "pending",
                 "cancelled": "cancelled",
@@ -118,7 +171,17 @@ TASKS: Dict[str, TaskDefinition] = {
         },
         fill_defaults={"city": "UNKNOWN", "state": "UNKNOWN"},
         cast_columns={"amount": "float"},
-        max_steps=10,
+        recommended_sort=("order_id",),
+        validation_rules={
+            "required_fields_present": "All required order fields are populated.",
+            "schema_matches": "The cleaned table matches the published orders schema.",
+            "duplicates_resolved": "Order business keys are unique.",
+            "amounts_numeric_non_negative": "Amounts are numeric and non-negative.",
+            "dates_canonical": "Order dates use the canonical YYYY-MM-DD format.",
+        },
+        risky_action_types=COMMON_RISKY_ACTIONS,
+        default_export_destination="orders_warehouse_ready_json",
+        max_steps=15,
         duplicate_rule=DuplicateRule(
             key_fields=["order_id"],
             completeness_fields=["customer_name", "status", "amount", "order_date", "city", "state"],
@@ -127,10 +190,13 @@ TASKS: Dict[str, TaskDefinition] = {
     "hard_appointments_cleanup": TaskDefinition(
         task_id="hard_appointments_cleanup",
         difficulty="hard",
+        domain="clinic scheduling",
+        source_system="clinic_scheduler_export",
+        rule_pack_name="appointments_cleanup_pack",
         description=(
-            "Clean a clinic appointments table by standardizing timestamps, normalizing doctor "
-            "and department labels, filling required fields, and resolving conflicting duplicates "
-            "with a deterministic business rule."
+            "Clean a clinic appointments export by standardizing timestamps, normalizing doctor "
+            "and department labels, reviewing imputed values, resolving risky duplicate conflicts, "
+            "and publishing an audited scheduling table."
         ),
         input_path=_data_path("hard_input.json"),
         expected_path=_data_path("hard_expected.json"),
@@ -174,11 +240,22 @@ TASKS: Dict[str, TaskDefinition] = {
                 "dr omar reed": "Dr. Omar Reed",
                 "dr. jo park": "Dr. Jo Park",
                 "jo park": "Dr. Jo Park",
+                "dr jo park": "Dr. Jo Park",
             },
         },
         fill_defaults={"doctor": "TBD", "notes": "UNKNOWN"},
         case_columns={"patient_name": CaseMode.TITLE},
-        max_steps=12,
+        recommended_sort=("appointment_id",),
+        validation_rules={
+            "required_fields_present": "All required scheduling fields are populated.",
+            "schema_matches": "The cleaned table matches the published appointments schema.",
+            "duplicates_resolved": "Appointment business keys are unique.",
+            "timestamps_canonical": "Appointment and update timestamps are canonical ISO values.",
+            "doctor_assignments_valid": "Doctor fields are populated or intentionally reviewed placeholders.",
+        },
+        risky_action_types=COMMON_RISKY_ACTIONS,
+        default_export_destination="appointments_warehouse_ready_json",
+        max_steps=15,
         duplicate_rule=DuplicateRule(
             key_fields=["appointment_id"],
             completeness_fields=[
@@ -213,64 +290,3 @@ def load_task_input(task_id: str) -> List[Dict[str, Any]]:
 
 def load_task_expected(task_id: str) -> List[Dict[str, Any]]:
     return load_table(get_task(task_id).expected_path)
-
-
-FALLBACK_POLICIES: Dict[str, List[TabularCleaningAction]] = {
-    "easy_contacts_cleanup": [
-        TabularCleaningAction(action_type=ActionType.RENAME_COLUMN, column="full_name", new_name="name"),
-        TabularCleaningAction(action_type=ActionType.STRIP_WHITESPACE),
-        TabularCleaningAction(action_type=ActionType.NORMALIZE_CASE, column="name", case_mode=CaseMode.TITLE),
-        TabularCleaningAction(action_type=ActionType.NORMALIZE_CASE, column="email", case_mode=CaseMode.LOWER),
-        TabularCleaningAction(
-            action_type=ActionType.REPLACE_VALUES,
-            column="department",
-            replacements={"hr": "Human Resources", "human resources": "Human Resources", "eng": "Engineering"},
-        ),
-        TabularCleaningAction(action_type=ActionType.STANDARDIZE_DATE, column="start_date"),
-        TabularCleaningAction(action_type=ActionType.FILL_MISSING, column="phone", fill_value="UNKNOWN"),
-        TabularCleaningAction(action_type=ActionType.SUBMIT),
-    ],
-    "medium_orders_cleanup": [
-        TabularCleaningAction(action_type=ActionType.STRIP_WHITESPACE),
-        TabularCleaningAction(
-            action_type=ActionType.REPLACE_VALUES,
-            column="status",
-            replacements={" shipped ": "shipped", "Shipped": "shipped", " pending ": "pending", "canceled": "cancelled"},
-        ),
-        TabularCleaningAction(action_type=ActionType.STANDARDIZE_DATE, column="order_date"),
-        TabularCleaningAction(action_type=ActionType.CAST_DTYPE, column="amount", dtype="float"),
-        TabularCleaningAction(action_type=ActionType.FILL_MISSING, column="city", fill_value="UNKNOWN"),
-        TabularCleaningAction(action_type=ActionType.FILL_MISSING, column="state", fill_value="UNKNOWN"),
-        TabularCleaningAction(action_type=ActionType.DROP_DUPLICATES),
-        TabularCleaningAction(action_type=ActionType.SUBMIT),
-    ],
-    "hard_appointments_cleanup": [
-        TabularCleaningAction(action_type=ActionType.STRIP_WHITESPACE),
-        TabularCleaningAction(action_type=ActionType.NORMALIZE_CASE, column="patient_name", case_mode=CaseMode.TITLE),
-        TabularCleaningAction(
-            action_type=ActionType.REPLACE_VALUES,
-            column="department",
-            replacements={"cardio": "Cardiology", "ortho": "Orthopedics", "neuro": "Neurology"},
-        ),
-        TabularCleaningAction(
-            action_type=ActionType.REPLACE_VALUES,
-            column="doctor",
-            replacements={
-                "anne li": "Dr. Anne Li",
-                "dr anne li": "Dr. Anne Li",
-                "dr. anne li": "Dr. Anne Li",
-                "omar reed": "Dr. Omar Reed",
-                "dr omar reed": "Dr. Omar Reed",
-                "dr. omar reed": "Dr. Omar Reed",
-                "jo park": "Dr. Jo Park",
-                "dr jo park": "Dr. Jo Park",
-                "dr. jo park": "Dr. Jo Park",
-            },
-        ),
-        TabularCleaningAction(action_type=ActionType.STANDARDIZE_DATE),
-        TabularCleaningAction(action_type=ActionType.FILL_MISSING, column="doctor", fill_value="TBD"),
-        TabularCleaningAction(action_type=ActionType.FILL_MISSING, column="notes", fill_value="UNKNOWN"),
-        TabularCleaningAction(action_type=ActionType.DROP_DUPLICATES),
-        TabularCleaningAction(action_type=ActionType.SUBMIT),
-    ],
-}

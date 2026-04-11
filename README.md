@@ -1,95 +1,150 @@
 ---
-title: OpenEnv Tabular Cleaning
-emoji: "🧹"
+title: Commerce Ops Cleanup Workbench
+emoji: "📦"
 colorFrom: blue
-colorTo: green
+colorTo: indigo
 sdk: docker
 app_port: 8000
 ---
 
 # openenv-tabular-cleaning
 
-`tabular_cleaning_env` is a deterministic OpenEnv environment for a human-in-the-loop operational data cleanup workbench. Instead of treating table cleaning as a magic black-box transformation, the environment models the real workflow analysts and ops teams follow: profile a messy export, apply structured fixes, review risky changes, run validation gates, and export or publish an audited downstream-ready table.
+`tabular_cleaning_env` is a deterministic OpenEnv environment for a **commerce data operations cleanup workbench**.
 
-## Why This Environment
+It simulates a very real workflow inside ops, analytics, revops, and support teams: a messy export comes in from a business system, an agent profiles it, applies structured cleanup actions, gets risky changes reviewed, runs validations, and publishes an audited clean table for downstream use.
 
-People clean messy CSV and JSON exports every day in commerce operations, analytics, revops, and customer support workflows. The real pain is not just fixing whitespace or dates; it is making traceable changes without silently losing rows or pushing bad data downstream. This environment simulates that governed workflow with tiny bundled datasets and deterministic graders so judges can see exactly what the agent is being rewarded for.
+This is intentionally not a toy game. It is a governed data-cleaning workflow built around the standard OpenEnv API.
 
-## Why This Is A Real Benchmark
+## What Problem It Solves
 
-The benchmark models work that data analysts, ops teams, and revops or support admins genuinely do:
+Teams routinely receive broken exports from CRMs, storefronts, and scheduling tools:
 
-- resolve schema drift in exports
-- normalize messy categorical labels and timestamps
-- fill missing required values with documented defaults
-- remove duplicates using a deterministic business rule
-- review higher-risk changes before downstream publication
-- validate cleaned data before export or publish
-- preserve an audit trail for what changed and why
+- columns are renamed or inconsistent
+- dates use mixed formats
+- labels drift over time
+- required fields are missing
+- duplicates appear after manual merges or sync bugs
 
-The grader is transparent and field-level. Agents only receive full credit when the current table actually matches the cleaned target table, including canonical date formatting and duplicate resolution outcomes.
+In the real world, this work is often done manually in spreadsheets, with little auditability and a high risk of silently damaging data. This environment turns that exact problem into a deterministic agent benchmark.
 
 ## Real-World Workflow
 
-The environment frames the task as an internal cleanup workbench:
+The environment models a realistic internal workflow:
 
-1. import a raw operational export from a source system
-2. profile the table and inspect suggested safe vs risky changes
-3. apply cleanup actions through a typed action space
-4. approve or reject risky changes such as schema renames, imputations, type casts, or duplicate removal
+1. import a raw operational export
+2. profile the table and inspect the change set
+3. apply structured cleanup actions
+4. approve or reject risky mutations
 5. run validation gates
-6. export a cleaned table plus validation report and audit log
-7. publish the cleaned artifact for downstream use
+6. export a cleaned artifact bundle
+7. publish the final table
+
+That is the core product story: **a human-in-the-loop data cleanup workbench for commerce operations**.
+
+## Why This Benchmark Is Strong
+
+- The task is clearly real-world and easy for judges to understand.
+- Grading is deterministic and transparent.
+- Reward shaping is dense and bounded.
+- The action space is structured, typed, and safe.
+- The tasks cover realistic source systems without requiring external data or custom training.
 
 ## Environment API
 
 The environment follows the standard OpenEnv shape:
 
-- `reset(task_id=...)` returns the initial observation for a chosen task.
-- `step(action)` returns observation, reward, done, and `metadata` as the `info` equivalent.
-- `state()` returns the current serializable internal state.
+- `reset(task_id=...)` returns the initial observation
+- `step(action)` returns the next observation with `reward`, `done`, and `metadata`
+- `state()` returns the full serializable internal state
 
-Core files:
+Core implementation files:
 
-- `server/environment.py`: `TabularCleaningEnvironment`
-- `server/app.py`: FastAPI/OpenEnv app entrypoint
-- `tabular_cleaning_env/models.py`: typed Action, Observation, State
-- `tabular_cleaning_env/graders.py`: transparent deterministic grading
-- `inference.py`: baseline inference runner with exact hackathon logging
+- [inference.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/inference.py)
+- [server/environment.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/server/environment.py)
+- [server/app.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/server/app.py)
+- [tabular_cleaning_env/models.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tabular_cleaning_env/models.py)
+- [tabular_cleaning_env/tasks.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tabular_cleaning_env/tasks.py)
+- [tabular_cleaning_env/graders.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tabular_cleaning_env/graders.py)
 
-## Observation Space
+## Bundled Tasks
 
-Each observation includes:
+The benchmark ships exactly 3 tasks with increasing difficulty.
 
-- `task_id`
-- `difficulty`
-- `source_system`
-- `task_description`
-- `task_rules`
-- `table_columns`
-- `table_rows_preview`
-- `row_count`
-- `issues_summary`
-- `change_set_summary`
-- `proposed_changes_summary`
-- `risky_changes`
-- `validation_status`
-- `validation_checks`
-- `audit_log_preview`
-- `export_ready`
-- `last_action`
-- `last_action_error`
-- `steps_taken`
-- `max_steps`
-- `current_score_estimate`
-- `available_actions`
-- `done`
-- `reward`
-- `metadata`
+| Task | Difficulty | Source System | What the agent must do |
+|---|---|---|---|
+| `easy_contacts_cleanup` | Easy | CRM customer contacts export | Fix schema drift, normalize names/emails/customer segments, standardize signup dates, fill missing phones, validate, export, publish |
+| `medium_orders_cleanup` | Medium | E-commerce orders export | Normalize statuses and dates, cast amounts, fill missing location fields, remove true duplicates, validate, export, publish |
+| `hard_appointments_cleanup` | Hard | Field-service scheduling export | Normalize technician and service-line labels, standardize timestamps, fill missing values, resolve duplicate conflicts deterministically, validate, export, publish |
+
+Step budgets:
+
+- Easy: `13`
+- Medium: `15`
+- Hard: `15`
+
+## Sample Data
+
+All bundled tables live in [data](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data).
+Each task ships with a messy input table and a gold cleaned table:
+
+- [easy_input.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/easy_input.json)
+- [easy_expected.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/easy_expected.json)
+- [medium_input.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/medium_input.json)
+- [medium_expected.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/medium_expected.json)
+- [hard_input.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/hard_input.json)
+- [hard_expected.json](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/data/hard_expected.json)
+
+Example messy rows:
+
+### CRM Contacts
+
+```json
+{
+  "customer_id": "C001",
+  "full_name": " alice johnson ",
+  "email": "ALICE.JOHNSON@EXAMPLE.COM ",
+  "customer_segment": " vip ",
+  "signup_date": "2024/01/15",
+  "phone": " 555-0101 "
+}
+```
+
+### Orders Export
+
+```json
+{
+  "order_id": "ORD-1001",
+  "customer_name": "Ava Patel",
+  "status": " shipped ",
+  "amount": "$120.50",
+  "order_date": "2024/03/01",
+  "city": " Seattle ",
+  "state": "WA"
+}
+```
+
+### Service Scheduling
+
+```json
+{
+  "appointment_id": "APT-001",
+  "customer_name": "maya singh ",
+  "service_line": " delivery ",
+  "technician": "alex cole",
+  "appointment_time": "2024/04/10 09:30",
+  "status": "confirmed",
+  "notes": " gate code confirmed ",
+  "updated_at": "2024/04/01 08:00"
+}
+```
+
+These are tiny handcrafted datasets on purpose: they are easy to inspect, deterministic to grade, and small enough to validate quickly in Docker or on Hugging Face Spaces.
 
 ## Action Space
 
-The action space is typed and intentionally narrow:
+The action space is typed and intentionally narrow.
+
+Workflow actions:
 
 - `profile_table`
 - `view_change_set`
@@ -98,6 +153,9 @@ The action space is typed and intentionally narrow:
 - `reject_change`
 - `export_cleaned_table`
 - `publish_table`
+
+Inspection and cleanup actions:
+
 - `inspect_table`
 - `inspect_column`
 - `rename_column`
@@ -111,98 +169,132 @@ The action space is typed and intentionally narrow:
 - `sort_rows`
 - `submit`
 
-The action model supports optional fields such as `column`, `new_name`, `case_mode`, `replacements`, `fill_value`, `dtype`, `sort_by`, `ascending`, `preview_rows`, `change_id`, and `destination`.
+Supported action fields include:
 
-`task_rules` gives agents the cleaning contract they need to act generically:
+- `column`
+- `new_name`
+- `case_mode`
+- `replacements`
+- `fill_value`
+- `dtype`
+- `sort_by`
+- `ascending`
+- `preview_rows`
+- `change_id`
+- `destination`
 
-- source system and rule pack name
-- expected columns and primary key
-- date columns and required canonical formats
+## Observation and State
+
+Each observation contains the information an agent needs to act generically:
+
+- task metadata such as `task_id`, `difficulty`, `source_system`, and `task_description`
+- table context such as `table_columns`, `table_rows_preview`, `row_count`, and `issues_summary`
+- workflow state such as `change_set_summary`, `risky_changes`, `validation_status`, and `export_ready`
+- trajectory state such as `last_action`, `last_action_error`, `steps_taken`, and `current_score_estimate`
+- `task_rules`, which define the cleaning contract for the current source-system export
+
+The serialized state also tracks:
+
+- current working table
+- proposed, approved, and rejected changes
+- validation results
+- export artifacts
+- append-only transformation log
+
+## Rule Packs
+
+Each task exposes a rule pack through `task_rules`, including:
+
+- expected schema
+- required columns
+- primary key
+- date columns
 - normalization hints
-- constant fill defaults
+- fill defaults
 - dtype casts
 - case normalization targets
-- duplicate-resolution rule
-- validation rules
+- duplicate-resolution rules
+- validation checks
 - safe vs risky action types
 - default export destination
-- recommended sort order
 
-## Tasks
+This lets the baseline and any external agent behave generically instead of branching on task name.
 
-Exactly three bundled tasks are included:
+## Deterministic Grading
 
-1. `easy_contacts_cleanup`
-   A CRM customer contacts export with whitespace, case issues, a renamed column, customer-segment normalization, malformed dates, and missing phone values. Rule pack: `customer_contacts_cleanup_pack`.
-2. `medium_orders_cleanup`
-   A Shopify-style retail orders export with duplicate orders, inconsistent status labels, mixed numeric amount strings, inconsistent dates, and missing city/state values. Rule pack: `orders_cleanup_pack`.
-3. `hard_appointments_cleanup`
-   A field-service scheduling export with malformed timestamps, conflicting duplicates, inconsistent technician and service-line labels, and deterministic conflict resolution based on completeness and latest `updated_at`. Rule pack: `service_appointments_cleanup_pack`.
+Each task has a bundled gold table and a deterministic grader that returns a score in `[0.0, 1.0]`.
 
-Difficulty progression is controlled by both messiness and allowed step budget:
-
-- Easy: `max_steps = 13`
-- Medium: `max_steps = 15`
-- Hard: `max_steps = 15`
-
-## Graders
-
-The grader is deterministic and transparent. For each task, the current table is compared against a bundled gold table using a weighted score in `[0.0, 1.0]`:
+Score components:
 
 - `15%` schema correctness
 - `20%` row-key and duplicate correctness
-- `40%` exact cell correctness on the agent's current cleaned table
-- `15%` required-field completeness
-- `10%` temporal normalization correctness
+- `40%` exact cell correctness
+- `15%` completeness of required fields
+- `10%` date and timestamp correctness
 
-Gold tables score `1.0`. Raw input tables score below `1.0`. Partial cleanups score between the two. Date and datetime columns only receive full temporal credit when the agent has already converted them into the canonical task format.
+Important property:
+
+- the grader checks the agent’s **actual current table**
+- it does not normalize the candidate table into correctness for free
+- date formatting, duplicate handling, and imputation genuinely matter
 
 ## Reward Design
 
-Reward shaping is nonnegative and bounded:
+Rewards are shaped but bounded:
 
-- Reward on each step is `max(0, current_score - best_score_so_far_before_action)`.
-- Invalid, destructive, and no-op actions emit `0.0`.
-- Harmful actions can lower the current score estimate, but they do not emit negative rewards.
-- Risky changes can improve score immediately, but they must still be approved before validation, export, and publish.
-- Episodes end when the table has been published or when `max_steps` is reached.
+- `reward = max(0, current_score - best_score_so_far_before_action)`
+- invalid, destructive, or no-op actions emit `0.0`
+- risky actions may improve score immediately, but they still must be approved before validation/export/publish
+- the episode ends when the table is published or when `max_steps` is reached
 
-`Observation.metadata` contains structured grader breakdowns and action diagnostics, which acts as the `info` equivalent.
+This produces dense learning signal without unstable negative rewards.
 
-## Baseline Results
+## Baseline Inference
 
-The repo includes a deterministic rule-based fallback planner inside `inference.py`. It reads `task_rules`, `change_set_summary`, `risky_changes`, and validation/export state from the observation instead of branching on task id. The planner follows the governed workflow:
+The repo includes a root [inference.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/inference.py) that:
+
+- uses the `OpenAI` client for LLM calls
+- reads `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
+- requires `HF_TOKEN` with no default
+- falls back to a deterministic rule-based planner if the LLM path fails
+- emits the exact required parser-safe stdout format
+
+The fallback planner follows the same governed workflow as the environment:
 
 1. `profile_table`
-2. apply the next cleanup action
+2. apply the next cleanup step
 3. `approve_changes` whenever a risky mutation is pending
 4. `run_validations`
 5. `export_cleaned_table`
 6. `publish_table`
 
-Its reproducible baseline scores are:
+Reproducible baseline scores:
 
 - `easy_contacts_cleanup`: `1.00`
 - `medium_orders_cleanup`: `1.00`
 - `hard_appointments_cleanup`: `1.00`
 
-When `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN` are set, `inference.py` first asks an OpenAI-compatible model for the next JSON action and falls back to the deterministic planner if the API call fails, the JSON is invalid, or local action validation fails. Endpoint, auth, and timeout failures trip a one-way circuit breaker so the rest of the run does not keep waiting on a broken LLM path.
+### Required Inference Log Format
 
-## Local Setup
+```text
+[START] task=<task_name> env=tabular_cleaning_env model=<model_name>
+[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+[END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
+```
 
-Python 3.11 is the safest local target because current official OpenEnv tooling requires Python `>=3.10`.
+## Quick Start
+
+### Local setup
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -r requirements-dev.txt
-python3 -m pytest
+python3 -m pytest -q
 uvicorn server.app:app --host 0.0.0.0 --port 8000
 ```
 
-## Quick Start
-
-Run the inference baseline with the required environment variables:
+### Run inference
 
 ```bash
 export API_BASE_URL="https://router.huggingface.co/v1"
@@ -211,7 +303,7 @@ export HF_TOKEN="<your-hf-token>"
 python3 inference.py
 ```
 
-Connect to the running environment server:
+### Example client usage
 
 ```python
 from tabular_cleaning_env.client import TabularCleaningEnv
@@ -225,15 +317,6 @@ print(result.observation.metadata)
 env.close()
 ```
 
-If you want to use the official OpenEnv CLI path instead of the lightweight local fallback:
-
-```bash
-python3 -m uv python install 3.11
-python3 -m uv lock --python 3.11
-python3 -m uv run --python 3.11 openenv validate
-python3 -m uv run --python 3.11 server
-```
-
 ## Validation
 
 Local validation commands:
@@ -244,13 +327,14 @@ python3 -m uv run --python 3.11 openenv validate
 python3 -m uv run --python 3.11 pytest
 ```
 
-The repo includes:
+The repo includes the key submission files:
 
 - `openenv.yaml`
 - `pyproject.toml`
 - `uv.lock`
+- root `Dockerfile`
+- root `inference.py`
 - `server/app.py` with `main()`
-- a root `Dockerfile`
 
 ## Docker
 
@@ -261,64 +345,44 @@ docker build -t tabular-cleaning-env .
 docker run --rm -p 8000:8000 tabular-cleaning-env
 ```
 
-Then validate the running server:
+Then validate the live container:
 
 ```bash
 python3 -m uv run --python 3.11 openenv validate http://localhost:8000
 ```
 
-## Hugging Face Spaces Deployment
+## Hugging Face Spaces
 
-This project is set up for a containerized Space:
+This project is designed for a containerized Hugging Face Space:
 
-1. Create a Docker Space on Hugging Face.
-2. Push this repository as-is.
-3. The Space will build from the root `Dockerfile`.
-4. The app serves on port `8000`, matching `openenv.yaml` and the README front matter.
-
-## Inference Runner
-
-`inference.py` runs all three tasks in sequence and prints strict parser-safe logs:
-
-```text
-[START] task=<task_name> env=tabular_cleaning_env model=<model_name>
-[STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
-[END] success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
-```
-
-Environment variables:
-
-- `API_BASE_URL` with a default value
-- `MODEL_NAME` with a default value
-- `HF_TOKEN` with no default and required at runtime
-
-Run it with:
+1. create a Docker Space
+2. push this repository
+3. let the Space build from the root `Dockerfile`
+4. confirm the Space is `Running`
+5. validate the public runtime
 
 ```bash
-export HF_TOKEN="<your-hf-token>"
-python3 inference.py
+python3 -m uv run --python 3.11 openenv validate https://<your-space>.hf.space
 ```
-
-`HF_TOKEN` is required and has no default. `API_BASE_URL` and `MODEL_NAME` include defaults.
 
 ## Export Artifacts
 
-After a successful run, the workbench produces three downstream-ready artifacts in environment state:
+A successful run produces three downstream-ready artifacts in environment state:
 
 - `cleaned_table`
 - `data_quality_report`
 - `transformation_audit_log`
 
-This mirrors the real operational need to not only clean data, but also explain what changed and why it was safe to publish.
+That is the real-world value proposition: not just cleaning data, but cleaning it in a way that is reviewable, explainable, and safe to publish.
 
 ## Test Coverage
 
 The test suite covers:
 
 - model validation
-- reset, step, and state behavior
-- task graders on raw, partial, and gold tables
-- reward bounds and termination logic
-- inference log format
-- app import smoke test
+- environment reset, step, and state behavior
+- deterministic grading
+- reward bounds
+- workflow approval and publish semantics
+- inference log formatting
 - README command coverage

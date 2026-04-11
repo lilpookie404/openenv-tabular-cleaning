@@ -13,7 +13,7 @@ app_port: 8000
 
 It simulates a very real workflow inside ops, analytics, revops, and support teams: a messy export comes in from a business system, an agent profiles it, applies structured cleanup actions, gets risky changes reviewed, runs validations, and publishes an audited clean table for downstream use.
 
-This is intentionally not a toy game. It is a governed data-cleaning workflow built around the standard OpenEnv API.
+This is a governed data-cleaning workflow built around the standard OpenEnv API.
 
 ## What Problem It Solves
 
@@ -25,7 +25,7 @@ Teams routinely receive broken exports from CRMs, storefronts, and scheduling to
 - required fields are missing
 - duplicates appear after manual merges or sync bugs
 
-In the real world, this work is often done manually in spreadsheets, with little auditability and a high risk of silently damaging data. This environment turns that exact problem into a deterministic agent benchmark.
+In the real world, this work is often done manually in spreadsheets, with little auditability and a high risk of silently damaging data. This repository packages that workflow as a deterministic environment with transparent scoring.
 
 ## Real-World Workflow
 
@@ -41,9 +41,9 @@ The environment models a realistic internal workflow:
 
 That is the core product story: **a human-in-the-loop data cleanup workbench for commerce operations**.
 
-## Why This Benchmark Is Strong
+## Design Goals
 
-- The task is clearly real-world and easy for judges to understand.
+- The task models a concrete operational workflow.
 - Grading is deterministic and transparent.
 - Reward shaping is dense and bounded.
 - The action space is structured, typed, and safe.
@@ -84,7 +84,7 @@ Step budgets:
 
 ## Sample Data
 
-All bundled task data now uses a benchmark-style folder structure under [tasks](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks).
+All bundled task data now uses a task-oriented folder structure under [tasks](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks).
 Each task ships with:
 
 - `raw.csv`
@@ -210,7 +210,7 @@ This lets the baseline and any external agent behave generically instead of bran
 
 ## Deterministic Grading
 
-Each task has a bundled gold table and a deterministic grader that returns a score in `[0.0, 1.0]`.
+Each task has a bundled reference table and a deterministic grader that returns a score in `[0.0, 1.0]`.
 
 Score components:
 
@@ -239,7 +239,7 @@ This produces dense learning signal without unstable negative rewards.
 
 ## Baseline Inference
 
-The repo includes a root [inference.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/inference.py) that:
+The project includes a root [inference.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/inference.py) that:
 
 - uses the `OpenAI` client for LLM calls
 - reads `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`
@@ -315,7 +315,7 @@ python3 -m uv run --python 3.11 openenv validate
 python3 -m uv run --python 3.11 pytest
 ```
 
-The repo includes the key submission files:
+The project includes the core runtime files:
 
 - `openenv.yaml`
 - `pyproject.toml`

@@ -16,7 +16,8 @@ from .utils import (
     stringify,
 )
 
-OPEN_INTERVAL_EPSILON = 1e-4
+OPEN_INTERVAL_EPSILON = 1e-5
+OPEN_INTERVAL_UPPER = 0.9999
 
 
 def _expected_rows_for_task(task: TaskDefinition) -> List[Dict[str, Any]]:
@@ -107,7 +108,7 @@ def _temporal_score(
 
 def _open_interval_score(value: float) -> float:
     bounded = min(max(value, 0), 1)
-    return OPEN_INTERVAL_EPSILON + (bounded * (1 - (2 * OPEN_INTERVAL_EPSILON)))
+    return OPEN_INTERVAL_EPSILON + (bounded * (OPEN_INTERVAL_UPPER - OPEN_INTERVAL_EPSILON))
 
 
 def grade_table(task: TaskDefinition, rows: Sequence[Dict[str, Any]]) -> Dict[str, float]:

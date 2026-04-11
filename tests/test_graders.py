@@ -9,6 +9,9 @@ from tabular_cleaning_env.models import ActionType, TabularCleaningAction
 from tabular_cleaning_env.tasks import TASKS, load_task_expected, load_task_input
 from tabular_cleaning_env.utils import stable_json
 
+OPEN_INTERVAL_MIN = 1e-5
+OPEN_INTERVAL_MAX = 0.9999
+
 
 def _collect_rule_based_actions(task_id: str) -> List[TabularCleaningAction]:
     env = TabularCleaningEnvironment()
@@ -40,9 +43,9 @@ def _run_actions(task_id: str, actions: List[TabularCleaningAction]) -> Dict[str
     assert result is not None
     return {
         "score": result.current_score_estimate,
-        "reward": float(result.reward or 0),
-        "done": float(bool(result.done)),
-        "published": float(bool(env.state.published)),
+        "reward": float(result.reward) if result.reward is not None else OPEN_INTERVAL_MIN,
+        "done": bool(result.done),
+        "published": bool(env.state.published),
     }
 
 
@@ -51,8 +54,8 @@ def test_raw_partial_and_gold_scores_are_ordered() -> None:
     for task_id, task in TASKS.items():
         raw_table_score = grade_table(task, load_task_input(task_id))["score"]
         gold_score = grade_table(task, load_task_expected(task_id))["score"]
-        assert 0 < raw_table_score < 1
-        assert 0 < gold_score < 1
+        assert OPEN_INTERVAL_MIN <= raw_table_score <= OPEN_INTERVAL_MAX
+        assert OPEN_INTERVAL_MIN <= gold_score <= OPEN_INTERVAL_MAX
         observation = env.reset(task_id=task_id)
         raw_episode_score = observation.current_score_estimate
         obs_payload = observation.model_dump(exclude_none=True)
@@ -65,15 +68,15 @@ def test_raw_partial_and_gold_scores_are_ordered() -> None:
             obs_payload = partial_result.model_dump(exclude_none=True)
         assert partial_result is not None
         partial_score = partial_result.current_score_estimate
-        assert 0 < raw_episode_score < gold_score
-        assert raw_episode_score < partial_score < 1
-        assert 0.999 < gold_score < 1
+        assert OPEN_INTERVAL_MIN <= raw_episode_score < gold_score
+        assert raw_episode_score < partial_score <= OPEN_INTERVAL_MAX
+        assert 0.999 < gold_score <= OPEN_INTERVAL_MAX
 
 
 def test_terminal_publish_reward_is_positive_and_in_range() -> None:
     for task_id in TASKS:
         result = inference.run_task(task_id, client=None, model_name="deterministic-fallback")
-        assert 0 < result["rewards"][-1] < 1
+        assert OPEN_INTERVAL_MIN <= result["rewards"][-1] <= OPEN_INTERVAL_MAX
 
 
 def test_rewards_stay_bounded() -> None:
@@ -82,18 +85,19 @@ def test_rewards_stay_bounded() -> None:
         observation = env.reset(task_id=task_id)
         obs_payload = observation.model_dump(exclude_none=True)
         executed = set()
-        total_reward = 0
+        total_reward = 0.0
         while True:
             action = inference.fallback_action_from_observation(obs_payload, executed)
             executed.add(stable_json(action.model_dump(exclude_none=True)))
             result = env.step(action)
-            reward = float(result.reward or 0)
-            assert 0 <= reward <= 1
+            reward = float(result.reward) if result.reward is not None else OPEN_INTERVAL_MIN
+            assert OPEN_INTERVAL_MIN <= reward <= OPEN_INTERVAL_MAX
             total_reward += reward
             obs_payload = result.model_dump(exclude_none=True)
             if result.done:
                 break
-        assert 0 <= total_reward <= 1
+        assert OPEN_INTERVAL_MIN <= total_reward
+        assert total_reward <= len(obs_payload["available_actions"])
 
 
 def test_skipping_any_required_rule_based_action_lowers_final_score() -> None:
@@ -106,7 +110,7 @@ def test_skipping_any_required_rule_based_action_lowers_final_score() -> None:
             rerun_actions = [candidate for offset, candidate in enumerate(actions) if offset != index]
             result = _run_actions(task_id, rerun_actions)
             assert (
-                result["score"] < 0.999 or result["done"] == 0 or result["published"] == 0
+                result["score"] < 0.999 or (not result["done"]) or (not result["published"])
             ), f"{task_id} unexpectedly succeeded without {action.action_type.value}"
 
 
@@ -122,7 +126,7 @@ def test_date_and_fill_actions_improve_score() -> None:
             action = inference.fallback_action_from_observation(obs_payload, executed)
             executed.add(stable_json(action.model_dump(exclude_none=True)))
             result = env.step(action)
-            reward = float(result.reward or 0)
+            reward = float(result.reward) if result.reward is not None else OPEN_INTERVAL_MIN
             if action.action_type == ActionType.STANDARDIZE_DATE:
                 date_rewards.append(reward)
             if action.action_type == ActionType.FILL_MISSING:

@@ -34,6 +34,8 @@ class TabularCleaningEnvironment(Environment):
     """OpenEnv-compatible environment for a governed tabular cleanup workflow."""
 
     SUPPORTS_CONCURRENT_SESSIONS = True
+    OPEN_INTERVAL_MIN = 1e-5
+    OPEN_INTERVAL_MAX = 0.9999
     TABLE_SCORE_WEIGHT = 0.9
     VALIDATION_BONUS = 0.02
     EXPORT_BONUS = 0.02
@@ -118,7 +120,6 @@ class TabularCleaningEnvironment(Environment):
             reward=None,
             done=False,
             metadata={
-                "grader_breakdown": initial_grades,
                 "reset": True,
                 "workflow": self._workflow_metadata(),
             },
@@ -133,7 +134,7 @@ class TabularCleaningEnvironment(Environment):
         del timeout_s
         if self._state.submitted or self._state.step_count >= self._task.max_steps:
             return self._build_observation(
-                reward=0,
+                reward=self.OPEN_INTERVAL_MIN,
                 done=True,
                 error="Episode already finished. Call reset() to start a new task.",
                 metadata={"final_score": self._state.current_score, "reason": "episode_complete"},
@@ -259,15 +260,16 @@ class TabularCleaningEnvironment(Environment):
         self._state.current_columns = self._current_columns()
         episode_score = self._compose_episode_score(grades["score"])
         self._state.current_score = episode_score
-        reward = 0
+        reward = self.OPEN_INTERVAL_MIN
 
         if error is None:
             if episode_score < previous_score:
                 info["penalty_type"] = "destructive"
-            reward = max(0, round(episode_score - previous_best, 6))
+            reward_delta = round(episode_score - previous_best, 6)
+            reward = self._emit_open_interval(reward_delta)
             self._state.best_score_so_far = max(previous_best, episode_score)
         else:
-            reward = 0
+            reward = self.OPEN_INTERVAL_MIN
             grades = grade_table(self._task, self._table)
             self._state.current_score = self._compose_episode_score(grades["score"])
             self._state.current_table = clone_rows(self._table)
@@ -278,11 +280,6 @@ class TabularCleaningEnvironment(Environment):
             info["termination_reason"] = "max_steps"
 
         done = self._state.submitted
-        info["grader_breakdown"] = grades
-        info["table_score"] = grades["score"]
-        info["workflow_bonus"] = round(self._workflow_score_bonus(), 6)
-        info["score_before_action"] = previous_score
-        info["score_after_action"] = self._state.current_score
         info["workflow"] = self._workflow_metadata()
 
         return self._build_observation(
@@ -349,7 +346,7 @@ class TabularCleaningEnvironment(Environment):
         return list(self._table[0].keys())
 
     def _workflow_score_bonus(self) -> float:
-        bonus = 0
+        bonus = 0.0
         if self._state.validation_status == "passed":
             bonus += self.VALIDATION_BONUS
         if bool(self._state.export_artifacts):
@@ -369,7 +366,7 @@ class TabularCleaningEnvironment(Environment):
         effective_validation = self._state.validation_status if validation_status is None else validation_status
         effective_export = bool(self._state.export_artifacts) if has_export_artifact is None else has_export_artifact
         effective_published = self._state.published if published is None else published
-        bonus = 0
+        bonus = 0.0
         if effective_validation == "passed":
             bonus += self.VALIDATION_BONUS
         if effective_export:
@@ -377,7 +374,10 @@ class TabularCleaningEnvironment(Environment):
         if effective_published:
             bonus += self.PUBLISH_BONUS
         composed = (self.TABLE_SCORE_WEIGHT * table_score) + bonus
-        return round(min(max(composed, 0.0001), 0.9999), 6)
+        return round(self._emit_open_interval(composed), 6)
+
+    def _emit_open_interval(self, value: float) -> float:
+        return min(max(float(value), self.OPEN_INTERVAL_MIN), self.OPEN_INTERVAL_MAX)
 
     def _inspection_profile(self) -> Dict[str, Any]:
         return {

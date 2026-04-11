@@ -16,6 +16,8 @@ from .utils import (
     stringify,
 )
 
+OPEN_INTERVAL_EPSILON = 1e-4
+
 
 def _expected_rows_for_task(task: TaskDefinition) -> List[Dict[str, Any]]:
     normalized: List[Dict[str, Any]] = []
@@ -103,6 +105,11 @@ def _temporal_score(
     return matches / total if total else 1.0
 
 
+def _open_interval_score(value: float) -> float:
+    bounded = min(max(value, 0.0), 1.0)
+    return OPEN_INTERVAL_EPSILON + (bounded * (1.0 - (2.0 * OPEN_INTERVAL_EPSILON)))
+
+
 def grade_table(task: TaskDefinition, rows: Sequence[Dict[str, Any]]) -> Dict[str, float]:
     raw_current_rows = [dict(row) for row in rows]
     current_rows = canonical_sort(_current_rows_for_task(rows, task), task.primary_key, task.expected_columns)
@@ -121,11 +128,12 @@ def grade_table(task: TaskDefinition, rows: Sequence[Dict[str, Any]]) -> Dict[st
         + (0.15 * completeness)
         + (0.10 * temporal)
     )
+    emitted_score = _open_interval_score(final_score)
     return {
         "schema_score": round(schema, 6),
         "row_score": round(rows_score, 6),
         "cell_score": round(cell_score, 6),
         "completeness_score": round(completeness, 6),
         "temporal_score": round(temporal, 6),
-        "score": round(min(max(final_score, 0.0), 1.0), 6),
+        "score": round(emitted_score, 6),
     }

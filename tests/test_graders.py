@@ -51,6 +51,8 @@ def test_raw_partial_and_gold_scores_are_ordered() -> None:
     for task_id, task in TASKS.items():
         raw_score = grade_table(task, load_task_input(task_id))["score"]
         gold_score = grade_table(task, load_task_expected(task_id))["score"]
+        assert 0.0 < raw_score < 1.0
+        assert 0.0 < gold_score < 1.0
         observation = env.reset(task_id=task_id)
         obs_payload = observation.model_dump(exclude_none=True)
         executed = set()
@@ -63,7 +65,7 @@ def test_raw_partial_and_gold_scores_are_ordered() -> None:
         assert partial_result is not None
         partial_score = partial_result.current_score_estimate
         assert raw_score < partial_score < gold_score
-        assert gold_score == 1.0
+        assert 0.999 < gold_score < 1.0
 
 
 def test_rewards_stay_bounded() -> None:
@@ -96,7 +98,7 @@ def test_skipping_any_required_rule_based_action_lowers_final_score() -> None:
             rerun_actions = [candidate for offset, candidate in enumerate(actions) if offset != index]
             result = _run_actions(task_id, rerun_actions)
             assert (
-                result["score"] < 1.0 or result["done"] == 0.0 or result["published"] == 0.0
+                result["score"] < 0.999 or result["done"] == 0.0 or result["published"] == 0.0
             ), f"{task_id} unexpectedly succeeded without {action.action_type.value}"
 
 

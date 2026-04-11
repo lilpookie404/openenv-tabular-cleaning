@@ -219,7 +219,7 @@ This lets the baseline and any external agent behave generically instead of bran
 
 ## Deterministic Grading
 
-Each task has a bundled reference table and a deterministic grader that returns a score in `[0.0, 1.0]`.
+Each task has a bundled reference table and a deterministic grader that emits a task score strictly inside `(0.0, 1.0)`.
 
 Score components:
 
@@ -267,9 +267,9 @@ The fallback planner follows the same governed workflow as the environment:
 
 Reproducible baseline scores:
 
-- `easy_contacts_cleanup`: `1.00`
-- `medium_orders_cleanup`: `1.00`
-- `hard_appointments_cleanup`: `1.00`
+- `easy_contacts_cleanup`: `0.9999`
+- `medium_orders_cleanup`: `0.9999`
+- `hard_appointments_cleanup`: `0.9999`
 
 ### Required Inference Log Format
 

@@ -388,7 +388,7 @@ def run_task(
             )
             observation = result.model_dump(exclude_none=True)
             if done:
-                success = score >= 0.999
+                success = bool(result.change_set_summary.get("published"))
                 break
     except Exception as exc:
         last_error = str(exc)

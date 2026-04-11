@@ -98,11 +98,11 @@ def test_rule_based_run_produces_validated_export_and_publish_state() -> None:
     assert env.state.published is True
 
 
-def test_rule_based_fallback_reaches_perfect_score() -> None:
+def test_rule_based_fallback_reaches_near_perfect_open_interval_score() -> None:
     for task_id in TASKS:
         result = inference.run_task(task_id, client=None, model_name="deterministic-fallback")
         assert result["success"] is True
-        assert result["score"] == 1.0
+        assert 0.999 < result["score"] < 1.0
 
 
 def test_rule_based_fallback_does_not_emit_sort_rows() -> None:

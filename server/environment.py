@@ -36,6 +36,7 @@ class TabularCleaningEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
     OPEN_INTERVAL_MIN = 1e-5
     OPEN_INTERVAL_MAX = 0.9999
+    REWARD_MIN = 0.01
     TABLE_SCORE_WEIGHT = 0.9
     VALIDATION_BONUS = 0.02
     EXPORT_BONUS = 0.02
@@ -117,7 +118,7 @@ class TabularCleaningEnvironment(Environment):
             export_artifacts={},
         )
         return self._build_observation(
-            reward=None,
+            reward=self.REWARD_MIN,
             done=False,
             metadata={
                 "reset": True,
@@ -134,7 +135,7 @@ class TabularCleaningEnvironment(Environment):
         del timeout_s
         if self._state.submitted or self._state.step_count >= self._task.max_steps:
             return self._build_observation(
-                reward=self.OPEN_INTERVAL_MIN,
+                reward=self.REWARD_MIN,
                 done=True,
                 error="Episode already finished. Call reset() to start a new task.",
                 metadata={"final_score": self._state.current_score, "reason": "episode_complete"},
@@ -260,16 +261,16 @@ class TabularCleaningEnvironment(Environment):
         self._state.current_columns = self._current_columns()
         episode_score = self._compose_episode_score(grades["score"])
         self._state.current_score = episode_score
-        reward = self.OPEN_INTERVAL_MIN
+        reward = self.REWARD_MIN
 
         if error is None:
             if episode_score < previous_score:
                 info["penalty_type"] = "destructive"
             reward_delta = round(episode_score - previous_best, 6)
-            reward = self._emit_open_interval(reward_delta)
+            reward = self._emit_reward(reward_delta)
             self._state.best_score_so_far = max(previous_best, episode_score)
         else:
-            reward = self.OPEN_INTERVAL_MIN
+            reward = self.REWARD_MIN
             grades = grade_table(self._task, self._table)
             self._state.current_score = self._compose_episode_score(grades["score"])
             self._state.current_table = clone_rows(self._table)
@@ -378,6 +379,9 @@ class TabularCleaningEnvironment(Environment):
 
     def _emit_open_interval(self, value: float) -> float:
         return min(max(float(value), self.OPEN_INTERVAL_MIN), self.OPEN_INTERVAL_MAX)
+
+    def _emit_reward(self, value: float) -> float:
+        return min(max(float(value), self.REWARD_MIN), self.OPEN_INTERVAL_MAX)
 
     def _inspection_profile(self) -> Dict[str, Any]:
         return {

@@ -48,6 +48,7 @@ from tabular_cleaning_env.utils import stable_json
 
 ENV_NAME = "tabular_cleaning_env"
 OPEN_INTERVAL_MIN = 1e-5
+REWARD_MIN = 0.01
 TASK_ORDER = [
     "easy_contacts_cleanup",
     "medium_orders_cleanup",
@@ -377,7 +378,7 @@ def run_task(
             result = env.step(action)
             executed_actions.add(_action_signature(action))
             step_count += 1
-            reward = float(result.reward) if result.reward is not None else OPEN_INTERVAL_MIN
+            reward = float(result.reward) if result.reward is not None else REWARD_MIN
             rewards.append(reward)
             last_error = result.last_action_error
             score = result.current_score_estimate

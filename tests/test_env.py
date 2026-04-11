@@ -10,6 +10,7 @@ from tabular_cleaning_env.tasks import TASKS
 
 OPEN_INTERVAL_MIN = 1e-5
 OPEN_INTERVAL_MAX = 0.9999
+REWARD_MIN = 0.01
 
 
 def test_app_import_smoke() -> None:
@@ -74,7 +75,7 @@ def test_risky_change_requires_approval_before_more_mutations() -> None:
     change_id = renamed.risky_changes[-1]["change_id"]
 
     blocked = env.step(TabularCleaningAction(action_type=ActionType.STRIP_WHITESPACE))
-    assert blocked.reward == OPEN_INTERVAL_MIN
+    assert blocked.reward == REWARD_MIN
     assert blocked.last_action_error is not None
     assert "Approve or reject" in blocked.last_action_error
 
@@ -133,7 +134,7 @@ def test_invalid_action_has_zero_reward() -> None:
     result = env.step(
         TabularCleaningAction(action_type=ActionType.RENAME_COLUMN, column="missing", new_name="name")
     )
-    assert result.reward == OPEN_INTERVAL_MIN
+    assert result.reward == REWARD_MIN
     assert result.last_action_error is not None
 
 

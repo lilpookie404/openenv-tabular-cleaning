@@ -130,10 +130,10 @@ def grade_table(task: TaskDefinition, rows: Sequence[Dict[str, Any]]) -> Dict[st
     )
     emitted_score = _open_interval_score(final_score)
     return {
-        "schema_score": round(schema, 6),
-        "row_score": round(rows_score, 6),
-        "cell_score": round(cell_score, 6),
-        "completeness_score": round(completeness, 6),
-        "temporal_score": round(temporal, 6),
+        "schema_score": round(_open_interval_score(schema), 6),
+        "row_score": round(_open_interval_score(rows_score), 6),
+        "cell_score": round(_open_interval_score(cell_score), 6),
+        "completeness_score": round(_open_interval_score(completeness), 6),
+        "temporal_score": round(_open_interval_score(temporal), 6),
         "score": round(emitted_score, 6),
     }

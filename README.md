@@ -71,7 +71,7 @@ Core implementation files:
 The benchmark ships exactly 3 tasks with increasing difficulty.
 
 | Task | Difficulty | Source System | Rows | What the agent must do |
-|---|---|---|---|
+|---|---|---|---|---|
 | `easy_contacts_cleanup` | Easy | CRM customer contacts export | `18` raw / `18` gold | Fix schema drift, normalize names/emails/customer segments, standardize signup dates, fill missing phones, validate, export, publish |
 | `medium_orders_cleanup` | Medium | E-commerce orders export | `20` raw / `16` gold | Normalize statuses and dates, cast amounts, fill missing location fields, remove true duplicates, validate, export, publish |
 | `hard_appointments_cleanup` | Hard | Field-service scheduling export | `20` raw / `16` gold | Normalize technician and service-line labels, standardize timestamps, fill missing values, resolve duplicate conflicts deterministically, validate, export, publish |

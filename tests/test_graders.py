@@ -49,11 +49,12 @@ def _run_actions(task_id: str, actions: List[TabularCleaningAction]) -> Dict[str
 def test_raw_partial_and_gold_scores_are_ordered() -> None:
     env = TabularCleaningEnvironment()
     for task_id, task in TASKS.items():
-        raw_score = grade_table(task, load_task_input(task_id))["score"]
+        raw_table_score = grade_table(task, load_task_input(task_id))["score"]
         gold_score = grade_table(task, load_task_expected(task_id))["score"]
-        assert 0.0 < raw_score < 1.0
+        assert 0.0 < raw_table_score < 1.0
         assert 0.0 < gold_score < 1.0
         observation = env.reset(task_id=task_id)
+        raw_episode_score = observation.current_score_estimate
         obs_payload = observation.model_dump(exclude_none=True)
         executed = set()
         partial_result = None
@@ -64,8 +65,15 @@ def test_raw_partial_and_gold_scores_are_ordered() -> None:
             obs_payload = partial_result.model_dump(exclude_none=True)
         assert partial_result is not None
         partial_score = partial_result.current_score_estimate
-        assert raw_score < partial_score < gold_score
+        assert 0.0 < raw_episode_score < gold_score
+        assert raw_episode_score < partial_score < 1.0
         assert 0.999 < gold_score < 1.0
+
+
+def test_terminal_publish_reward_is_positive_and_in_range() -> None:
+    for task_id in TASKS:
+        result = inference.run_task(task_id, client=None, model_name="deterministic-fallback")
+        assert 0.0 < result["rewards"][-1] < 1.0
 
 
 def test_rewards_stay_bounded() -> None:

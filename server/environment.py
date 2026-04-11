@@ -34,6 +34,10 @@ class TabularCleaningEnvironment(Environment):
     """OpenEnv-compatible environment for a governed tabular cleanup workflow."""
 
     SUPPORTS_CONCURRENT_SESSIONS = True
+    TABLE_SCORE_WEIGHT = 0.9
+    VALIDATION_BONUS = 0.02
+    EXPORT_BONUS = 0.02
+    PUBLISH_BONUS = 0.0599
 
     CLEANING_ACTION_TYPES = {
         ActionType.RENAME_COLUMN,
@@ -77,6 +81,12 @@ class TabularCleaningEnvironment(Environment):
         self._task = selected_task
         self._table = clone_rows(load_task_input(selected_task.task_id))
         initial_grades = grade_table(selected_task, self._table)
+        initial_score = self._compose_episode_score(
+            initial_grades["score"],
+            validation_status="not_run",
+            has_export_artifact=False,
+            published=False,
+        )
         self._preview_limit = 5
         self._last_action = None
         self._last_action_error = None
@@ -88,8 +98,8 @@ class TabularCleaningEnvironment(Environment):
             source_system=selected_task.source_system,
             current_table=clone_rows(self._table),
             current_columns=self._current_columns(),
-            current_score=initial_grades["score"],
-            best_score_so_far=initial_grades["score"],
+            current_score=initial_score,
+            best_score_so_far=initial_score,
             submitted=False,
             published=False,
             profiled=False,
@@ -247,18 +257,19 @@ class TabularCleaningEnvironment(Environment):
         grades = grade_table(self._task, self._table)
         self._state.current_table = clone_rows(self._table)
         self._state.current_columns = self._current_columns()
-        self._state.current_score = grades["score"]
+        episode_score = self._compose_episode_score(grades["score"])
+        self._state.current_score = episode_score
         reward = 0.0
 
         if error is None:
-            if grades["score"] < previous_score:
+            if episode_score < previous_score:
                 info["penalty_type"] = "destructive"
-            reward = max(0.0, round(grades["score"] - previous_best, 6))
-            self._state.best_score_so_far = max(previous_best, grades["score"])
+            reward = max(0.0, round(episode_score - previous_best, 6))
+            self._state.best_score_so_far = max(previous_best, episode_score)
         else:
             reward = 0.0
             grades = grade_table(self._task, self._table)
-            self._state.current_score = grades["score"]
+            self._state.current_score = self._compose_episode_score(grades["score"])
             self._state.current_table = clone_rows(self._table)
             info["penalty_type"] = "invalid"
 
@@ -268,6 +279,8 @@ class TabularCleaningEnvironment(Environment):
 
         done = self._state.submitted
         info["grader_breakdown"] = grades
+        info["table_score"] = grades["score"]
+        info["workflow_bonus"] = round(self._workflow_score_bonus(), 6)
         info["score_before_action"] = previous_score
         info["score_after_action"] = self._state.current_score
         info["workflow"] = self._workflow_metadata()
@@ -334,6 +347,37 @@ class TabularCleaningEnvironment(Environment):
         if not self._table:
             return list(self._task.expected_columns)
         return list(self._table[0].keys())
+
+    def _workflow_score_bonus(self) -> float:
+        bonus = 0.0
+        if self._state.validation_status == "passed":
+            bonus += self.VALIDATION_BONUS
+        if bool(self._state.export_artifacts):
+            bonus += self.EXPORT_BONUS
+        if self._state.published:
+            bonus += self.PUBLISH_BONUS
+        return bonus
+
+    def _compose_episode_score(
+        self,
+        table_score: float,
+        *,
+        validation_status: str | None = None,
+        has_export_artifact: bool | None = None,
+        published: bool | None = None,
+    ) -> float:
+        effective_validation = self._state.validation_status if validation_status is None else validation_status
+        effective_export = bool(self._state.export_artifacts) if has_export_artifact is None else has_export_artifact
+        effective_published = self._state.published if published is None else published
+        bonus = 0.0
+        if effective_validation == "passed":
+            bonus += self.VALIDATION_BONUS
+        if effective_export:
+            bonus += self.EXPORT_BONUS
+        if effective_published:
+            bonus += self.PUBLISH_BONUS
+        composed = (self.TABLE_SCORE_WEIGHT * table_score) + bonus
+        return round(min(max(composed, 0.0001), 0.9999), 6)
 
     def _inspection_profile(self) -> Dict[str, Any]:
         return {

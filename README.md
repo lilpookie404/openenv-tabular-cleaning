@@ -59,12 +59,12 @@ The environment follows the standard OpenEnv shape:
 
 Core implementation files:
 
-- [inference.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/inference.py)
-- [server/environment.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/server/environment.py)
-- [server/app.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/server/app.py)
-- [tabular_cleaning_env/models.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tabular_cleaning_env/models.py)
-- [tabular_cleaning_env/tasks.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tabular_cleaning_env/tasks.py)
-- [tabular_cleaning_env/graders.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tabular_cleaning_env/graders.py)
+- [inference.py](inference.py)
+- [server/environment.py](server/environment.py)
+- [server/app.py](server/app.py)
+- [tabular_cleaning_env/models.py](tabular_cleaning_env/models.py)
+- [tabular_cleaning_env/tasks.py](tabular_cleaning_env/tasks.py)
+- [tabular_cleaning_env/graders.py](tabular_cleaning_env/graders.py)
 
 ## Bundled Tasks
 
@@ -84,7 +84,7 @@ Step budgets:
 
 ## Sample Data
 
-All bundled task data now uses a task-oriented folder structure under [tasks](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks).
+All bundled task data now uses a task-oriented folder structure under [tasks](tasks).
 Each task ships with:
 
 - `raw.csv`
@@ -93,9 +93,18 @@ Each task ships with:
 
 Task folders:
 
-- [easy_contacts_cleanup](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks/easy_contacts_cleanup)
-- [medium_orders_cleanup](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks/medium_orders_cleanup)
-- [hard_appointments_cleanup](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/tasks/hard_appointments_cleanup)
+- [easy_contacts_cleanup](tasks/easy_contacts_cleanup)
+- [medium_orders_cleanup](tasks/medium_orders_cleanup)
+- [hard_appointments_cleanup](tasks/hard_appointments_cleanup)
+
+Example dataset files:
+
+- CRM contacts raw export: [tasks/easy_contacts_cleanup/raw.csv](tasks/easy_contacts_cleanup/raw.csv)
+- CRM contacts cleaned reference: [tasks/easy_contacts_cleanup/ground_truth.csv](tasks/easy_contacts_cleanup/ground_truth.csv)
+- Orders raw export: [tasks/medium_orders_cleanup/raw.csv](tasks/medium_orders_cleanup/raw.csv)
+- Orders cleaned reference: [tasks/medium_orders_cleanup/ground_truth.csv](tasks/medium_orders_cleanup/ground_truth.csv)
+- Service scheduling raw export: [tasks/hard_appointments_cleanup/raw.csv](tasks/hard_appointments_cleanup/raw.csv)
+- Service scheduling cleaned reference: [tasks/hard_appointments_cleanup/ground_truth.csv](tasks/hard_appointments_cleanup/ground_truth.csv)
 
 Current dataset sizes:
 
@@ -103,7 +112,7 @@ Current dataset sizes:
 - orders task: `20` raw rows and `16` gold rows
 - service scheduling task: `20` raw rows and `16` gold rows
 
-Example messy rows:
+Example dataset preview:
 
 ### CRM Contacts (`raw.csv`)
 
@@ -239,7 +248,7 @@ This produces dense learning signal without unstable negative rewards.
 
 ## Baseline Inference
 
-The project includes a root [inference.py](/Users/vaishnaviawadhiya/Projects/openenv-tabular-cleaning/inference.py) that:
+The project includes a root [inference.py](inference.py) that:
 
 - uses the `OpenAI` client for LLM calls
 - reads `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`

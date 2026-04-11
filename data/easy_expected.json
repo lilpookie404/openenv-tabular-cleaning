@@ -1,50 +1,50 @@
 [
   {
-    "employee_id": "E001",
-    "name": "Alice Johnson",
+    "customer_id": "C001",
+    "contact_name": "Alice Johnson",
     "email": "alice.johnson@example.com",
-    "department": "Human Resources",
-    "start_date": "2024-01-15",
+    "customer_segment": "VIP",
+    "signup_date": "2024-01-15",
     "phone": "555-0101"
   },
   {
-    "employee_id": "E002",
-    "name": "Bob Smith",
+    "customer_id": "C002",
+    "contact_name": "Bob Smith",
     "email": "bob.smith@example.com",
-    "department": "Human Resources",
-    "start_date": "2024-01-20",
+    "customer_segment": "Wholesale",
+    "signup_date": "2024-01-20",
     "phone": "UNKNOWN"
   },
   {
-    "employee_id": "E003",
-    "name": "Carla Gomez",
+    "customer_id": "C003",
+    "contact_name": "Carla Gomez",
     "email": "carla.gomez@example.com",
-    "department": "Engineering",
-    "start_date": "2024-02-05",
+    "customer_segment": "Retail",
+    "signup_date": "2024-02-05",
     "phone": "555-0103"
   },
   {
-    "employee_id": "E004",
-    "name": "David Lee",
+    "customer_id": "C004",
+    "contact_name": "David Lee",
     "email": "david.lee@example.com",
-    "department": "Finance",
-    "start_date": "2024-02-18",
+    "customer_segment": "Loyalty",
+    "signup_date": "2024-02-18",
     "phone": "UNKNOWN"
   },
   {
-    "employee_id": "E005",
-    "name": "Eve Martin",
+    "customer_id": "C005",
+    "contact_name": "Eve Martin",
     "email": "eve.martin@example.com",
-    "department": "Engineering",
-    "start_date": "2024-02-22",
+    "customer_segment": "Wholesale",
+    "signup_date": "2024-02-22",
     "phone": "555-0105"
   },
   {
-    "employee_id": "E006",
-    "name": "Frank Wright",
+    "customer_id": "C006",
+    "contact_name": "Frank Wright",
     "email": "frank.wright@example.com",
-    "department": "Human Resources",
-    "start_date": "2024-02-25",
+    "customer_segment": "VIP",
+    "signup_date": "2024-02-25",
     "phone": "555-0106"
   }
 ]

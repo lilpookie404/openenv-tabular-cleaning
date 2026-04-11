@@ -153,9 +153,9 @@ def index() -> HTMLResponse:
             <span class="badge">OpenEnv Ops Workbench</span>
             <h1>tabular_cleaning_env</h1>
             <p>
-              A deterministic human-in-the-loop cleanup workbench for messy operational exports. Agents profile
-              source data, apply structured cleanup actions, review risky changes, run validation gates, and
-              export or publish audited tables for downstream systems.
+              A deterministic human-in-the-loop cleanup workbench for messy commerce and operations exports.
+              Agents profile CRM, order, and service-scheduling data, apply structured cleanup actions, review
+              risky changes, run validation gates, and export or publish audited tables for downstream systems.
             </p>
             <div class="links">
               <a class="link-card" href="/docs"><div class="eyebrow">Explore</div><strong>API Docs</strong><p>Interactive FastAPI and OpenEnv schema explorer.</p></a>

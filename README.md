@@ -13,11 +13,11 @@ app_port: 8000
 
 ## Why This Environment
 
-People clean messy CSV and JSON exports every day in operations, analytics, healthcare, finance, and support workflows. The real pain is not just fixing whitespace or dates; it is making traceable changes without silently losing rows or pushing bad data downstream. This environment simulates that governed workflow with tiny bundled datasets and deterministic graders so judges can see exactly what the agent is being rewarded for.
+People clean messy CSV and JSON exports every day in commerce operations, analytics, revops, and customer support workflows. The real pain is not just fixing whitespace or dates; it is making traceable changes without silently losing rows or pushing bad data downstream. This environment simulates that governed workflow with tiny bundled datasets and deterministic graders so judges can see exactly what the agent is being rewarded for.
 
 ## Why This Is A Real Benchmark
 
-The benchmark models work that data analysts, operations teams, and healthcare admins genuinely do:
+The benchmark models work that data analysts, ops teams, and revops or support admins genuinely do:
 
 - resolve schema drift in exports
 - normalize messy categorical labels and timestamps
@@ -133,11 +133,11 @@ The action model supports optional fields such as `column`, `new_name`, `case_mo
 Exactly three bundled tasks are included:
 
 1. `easy_contacts_cleanup`
-   A Workday-style employee/contact export with whitespace, case issues, a renamed column, department synonym normalization, malformed dates, and missing phone values. Rule pack: `contacts_cleanup_pack`.
+   A CRM customer contacts export with whitespace, case issues, a renamed column, customer-segment normalization, malformed dates, and missing phone values. Rule pack: `customer_contacts_cleanup_pack`.
 2. `medium_orders_cleanup`
    A Shopify-style retail orders export with duplicate orders, inconsistent status labels, mixed numeric amount strings, inconsistent dates, and missing city/state values. Rule pack: `orders_cleanup_pack`.
 3. `hard_appointments_cleanup`
-   A clinic scheduling export with malformed timestamps, conflicting duplicates, inconsistent doctor and department labels, and deterministic conflict resolution based on completeness and latest `updated_at`. Rule pack: `appointments_cleanup_pack`.
+   A field-service scheduling export with malformed timestamps, conflicting duplicates, inconsistent technician and service-line labels, and deterministic conflict resolution based on completeness and latest `updated_at`. Rule pack: `service_appointments_cleanup_pack`.
 
 Difficulty progression is controlled by both messiness and allowed step budget:
 

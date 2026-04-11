@@ -603,9 +603,14 @@ class TabularCleaningEnvironment(Environment):
                 if not isinstance(row.get("amount"), (int, float)) or float(row.get("amount")) < 0
             ]
             return not invalid, "Amounts are numeric and non-negative." if not invalid else "Some amounts are invalid."
-        if check_id == "doctor_assignments_valid":
-            invalid = [row.get("doctor") for row in self._table if is_missing(row.get("doctor"))]
-            return not invalid, "Doctor assignments are populated or intentionally reviewed." if not invalid else "Some doctor fields are still blank."
+        if check_id == "technician_assignments_valid":
+            invalid = [row.get("technician") for row in self._table if is_missing(row.get("technician"))]
+            return (
+                not invalid,
+                "Technician assignments are populated or intentionally reviewed."
+                if not invalid
+                else "Some technician fields are still blank.",
+            )
         return True, "Validation rule not implemented explicitly; treated as passed."
 
     def _export_cleaned_table(self, destination: str | None) -> Dict[str, Any]:

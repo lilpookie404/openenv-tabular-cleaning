@@ -105,41 +105,40 @@ TASKS: Dict[str, TaskDefinition] = {
     "easy_contacts_cleanup": TaskDefinition(
         task_id="easy_contacts_cleanup",
         difficulty="easy",
-        domain="employee operations",
-        source_system="workday_hr_contacts_export",
-        rule_pack_name="contacts_cleanup_pack",
+        domain="customer operations",
+        source_system="crm_customer_contacts_export",
+        rule_pack_name="customer_contacts_cleanup_pack",
         description=(
-            "Clean an employee contact export from an HR/CRM workflow by fixing schema drift, "
-            "normalizing names, emails, departments, and dates, then validating and publishing "
-            "a warehouse-ready contacts table."
+            "Clean a CRM customer contacts export by fixing schema drift, normalizing names, "
+            "emails, customer segments, and signup dates, then validating and publishing a "
+            "warehouse-ready contacts table."
         ),
         input_path=_data_path("easy_input.json"),
         expected_path=_data_path("easy_expected.json"),
-        expected_columns=["employee_id", "name", "email", "department", "start_date", "phone"],
-        required_columns=["employee_id", "name", "email", "department", "start_date", "phone"],
-        primary_key=["employee_id"],
-        date_columns={"start_date": False},
-        rename_map={"full_name": "name"},
+        expected_columns=["customer_id", "contact_name", "email", "customer_segment", "signup_date", "phone"],
+        required_columns=["customer_id", "contact_name", "email", "customer_segment", "signup_date", "phone"],
+        primary_key=["customer_id"],
+        date_columns={"signup_date": False},
+        rename_map={"full_name": "contact_name"},
         normalization_hints={
-            "department": {
-                "hr": "Human Resources",
-                "human resources": "Human Resources",
-                "engineering": "Engineering",
-                "eng": "Engineering",
-                "finance": "Finance",
+            "customer_segment": {
+                "vip": "VIP",
+                "wholesale": "Wholesale",
+                "retail": "Retail",
+                "loyalty": "Loyalty",
             }
         },
         fill_defaults={"phone": "UNKNOWN"},
-        case_columns={"name": CaseMode.TITLE, "email": CaseMode.LOWER},
-        recommended_sort=("employee_id",),
+        case_columns={"contact_name": CaseMode.TITLE, "email": CaseMode.LOWER},
+        recommended_sort=("customer_id",),
         validation_rules={
-            "required_fields_present": "All required contact fields are populated.",
-            "schema_matches": "The cleaned table matches the published contacts schema.",
-            "dates_canonical": "Start dates use the canonical YYYY-MM-DD format.",
+            "required_fields_present": "All required customer contact fields are populated.",
+            "schema_matches": "The cleaned table matches the published customer contacts schema.",
+            "dates_canonical": "Signup dates use the canonical YYYY-MM-DD format.",
             "emails_valid": "Emails are syntactically valid and contain no spaces.",
         },
         risky_action_types=(ActionType.RENAME_COLUMN, ActionType.FILL_MISSING),
-        default_export_destination="contacts_warehouse_ready_json",
+        default_export_destination="customer_contacts_warehouse_ready_json",
         max_steps=13,
     ),
     "medium_orders_cleanup": TaskDefinition(
@@ -190,21 +189,21 @@ TASKS: Dict[str, TaskDefinition] = {
     "hard_appointments_cleanup": TaskDefinition(
         task_id="hard_appointments_cleanup",
         difficulty="hard",
-        domain="clinic scheduling",
-        source_system="clinic_scheduler_export",
-        rule_pack_name="appointments_cleanup_pack",
+        domain="field service operations",
+        source_system="field_service_scheduler_export",
+        rule_pack_name="service_appointments_cleanup_pack",
         description=(
-            "Clean a clinic appointments export by standardizing timestamps, normalizing doctor "
-            "and department labels, reviewing imputed values, resolving risky duplicate conflicts, "
-            "and publishing an audited scheduling table."
+            "Clean a field-service appointments export by standardizing timestamps, normalizing "
+            "technician and service-line labels, reviewing imputed values, resolving risky duplicate "
+            "conflicts, and publishing an audited service scheduling table."
         ),
         input_path=_data_path("hard_input.json"),
         expected_path=_data_path("hard_expected.json"),
         expected_columns=[
             "appointment_id",
-            "patient_name",
-            "department",
-            "doctor",
+            "customer_name",
+            "service_line",
+            "technician",
             "appointment_time",
             "status",
             "notes",
@@ -212,9 +211,9 @@ TASKS: Dict[str, TaskDefinition] = {
         ],
         required_columns=[
             "appointment_id",
-            "patient_name",
-            "department",
-            "doctor",
+            "customer_name",
+            "service_line",
+            "technician",
             "appointment_time",
             "status",
             "notes",
@@ -223,45 +222,38 @@ TASKS: Dict[str, TaskDefinition] = {
         primary_key=["appointment_id"],
         date_columns={"appointment_time": True, "updated_at": True},
         normalization_hints={
-            "department": {
-                "cardio": "Cardiology",
-                "cardiology": "Cardiology",
-                "ortho": "Orthopedics",
-                "orthopedics": "Orthopedics",
-                "neurology": "Neurology",
-                "neuro": "Neurology",
+            "service_line": {
+                "delivery": "Delivery",
+                "install": "Installation",
+                "installation": "Installation",
+                "return pickup": "Returns",
+                "returns": "Returns",
             },
-            "doctor": {
-                "dr. anne li": "Dr. Anne Li",
-                "dr anne li": "Dr. Anne Li",
-                "anne li": "Dr. Anne Li",
-                "dr. omar reed": "Dr. Omar Reed",
-                "omar reed": "Dr. Omar Reed",
-                "dr omar reed": "Dr. Omar Reed",
-                "dr. jo park": "Dr. Jo Park",
-                "jo park": "Dr. Jo Park",
-                "dr jo park": "Dr. Jo Park",
+            "technician": {
+                "alex cole": "Alex Cole",
+                "sam reed": "Sam Reed",
+                "jo park": "Jo Park",
             },
         },
-        fill_defaults={"doctor": "TBD", "notes": "UNKNOWN"},
-        case_columns={"patient_name": CaseMode.TITLE},
+        fill_defaults={"technician": "TBD", "notes": "UNKNOWN"},
+        case_columns={"customer_name": CaseMode.TITLE},
         recommended_sort=("appointment_id",),
         validation_rules={
-            "required_fields_present": "All required scheduling fields are populated.",
-            "schema_matches": "The cleaned table matches the published appointments schema.",
+            "required_fields_present": "All required field-service scheduling fields are populated.",
+            "schema_matches": "The cleaned table matches the published service scheduling schema.",
             "duplicates_resolved": "Appointment business keys are unique.",
             "timestamps_canonical": "Appointment and update timestamps are canonical ISO values.",
-            "doctor_assignments_valid": "Doctor fields are populated or intentionally reviewed placeholders.",
+            "technician_assignments_valid": "Technician fields are populated or intentionally reviewed placeholders.",
         },
         risky_action_types=COMMON_RISKY_ACTIONS,
-        default_export_destination="appointments_warehouse_ready_json",
+        default_export_destination="service_schedule_ready_json",
         max_steps=15,
         duplicate_rule=DuplicateRule(
             key_fields=["appointment_id"],
             completeness_fields=[
-                "patient_name",
-                "department",
-                "doctor",
+                "customer_name",
+                "service_line",
+                "technician",
                 "appointment_time",
                 "status",
                 "notes",

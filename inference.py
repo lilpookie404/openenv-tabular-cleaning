@@ -344,7 +344,7 @@ def run_task(
 ) -> Dict[str, Any]:
     env = env_factory()
     rewards: List[float] = []
-    score = 0.0
+    score = 0.0001
     step_count = 0
     success = False
     last_error: Optional[str] = None

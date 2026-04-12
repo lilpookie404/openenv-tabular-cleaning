@@ -34,6 +34,8 @@ class TaskDefinition:
     required_columns: Sequence[str]
     primary_key: Sequence[str]
     date_columns: Dict[str, bool]
+    grade_columns: Sequence[str] = field(default_factory=tuple)
+    sort_rows: bool = True
     rename_map: Dict[str, str] = field(default_factory=dict)
     normalization_hints: Dict[str, Dict[str, str]] = field(default_factory=dict)
     fill_defaults: Dict[str, str] = field(default_factory=dict)
@@ -67,6 +69,8 @@ class TaskDefinition:
             "required_columns": list(self.required_columns),
             "primary_key": list(self.primary_key),
             "date_columns": dict(self.date_columns),
+            "grade_columns": list(self.grade_columns or self.expected_columns),
+            "sort_rows": self.sort_rows,
             "rename_map": dict(self.rename_map),
             "normalization_hints": {
                 column: dict(mapping) for column, mapping in self.normalization_hints.items()

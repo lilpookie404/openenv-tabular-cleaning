@@ -219,28 +219,21 @@ This lets the baseline and any external agent behave generically instead of bran
 
 ## Deterministic Grading
 
-Each task has a bundled reference table and a deterministic grader that emits a task score strictly inside `(0, 1)`.
+Each task has a bundled reference table and one deterministic scalar grader that emits a task score strictly inside `(0, 1)`.
 
-Score components:
+Grading behavior:
 
-- `15%` schema correctness
-- `20%` row-key and duplicate correctness
-- `40%` exact cell correctness
-- `15%` completeness of required fields
-- `10%` date and timestamp correctness
-
-Important property:
-
-- the grader checks the agent’s **actual current table**
-- it does not normalize the candidate table into correctness for free
-- date formatting, duplicate handling, and imputation genuinely matter
+- the official task score comes only from the current cleaned table versus the bundled reference table
+- grading aligns the configured output columns, optionally sorts rows by task metadata, and compares cells directly
+- numeric grading columns use a small tolerance so formatted numeric outputs can still match exactly intended values
+- workflow steps such as validation, export, and publish do not inflate the official task score
 
 ## Reward Design
 
 Rewards are shaped but bounded:
 
-- `reward = max(0, current_score - best_score_so_far_before_action)`
-- invalid, destructive, or no-op actions emit `0`
+- `reward = max(min_visible_reward, current_score - best_score_so_far_before_action)`
+- invalid, destructive, or no-op actions emit the minimum visible reward floor instead of `0`
 - risky actions may improve score immediately, but they still must be approved before validation/export/publish
 - the episode ends when the table is published or when `max_steps` is reached
 
@@ -267,9 +260,9 @@ The fallback planner follows the same governed workflow as the environment:
 
 Reproducible baseline scores:
 
-- `easy_contacts_cleanup`: `0.9999`
-- `medium_orders_cleanup`: `0.9999`
-- `hard_appointments_cleanup`: `0.9999`
+- `easy_contacts_cleanup`: `0.999`
+- `medium_orders_cleanup`: `0.999`
+- `hard_appointments_cleanup`: `0.999`
 
 ### Required Inference Log Format
 

@@ -5,11 +5,12 @@ from fastapi.testclient import TestClient
 import inference
 from server.app import app
 from server.environment import TabularCleaningEnvironment
+from tabular_cleaning_env.graders import SCORE_MAX, SCORE_MIN, grade_task
 from tabular_cleaning_env.models import ActionType, TabularCleaningAction
 from tabular_cleaning_env.tasks import TASKS
 
-OPEN_INTERVAL_MIN = 1e-5
-OPEN_INTERVAL_MAX = 0.9999
+OPEN_INTERVAL_MIN = SCORE_MIN
+OPEN_INTERVAL_MAX = SCORE_MAX
 REWARD_MIN = 0.01
 
 
@@ -106,7 +107,7 @@ def test_rule_based_fallback_reaches_near_perfect_open_interval_score() -> None:
     for task_id in TASKS:
         result = inference.run_task(task_id, client=None, model_name="deterministic-fallback")
         assert result["success"] is True
-        assert 0.999 < result["score"] <= OPEN_INTERVAL_MAX
+        assert 0.99 < result["score"] <= OPEN_INTERVAL_MAX
 
 
 def test_rule_based_fallback_does_not_emit_sort_rows() -> None:
@@ -128,7 +129,7 @@ def test_rule_based_fallback_does_not_emit_sort_rows() -> None:
         assert ActionType.SORT_ROWS not in action_types
 
 
-def test_invalid_action_has_zero_reward() -> None:
+def test_invalid_action_has_minimum_visible_reward() -> None:
     env = TabularCleaningEnvironment()
     env.reset(task_id="easy_contacts_cleanup")
     result = env.step(
@@ -159,12 +160,16 @@ def test_schema_reward_is_non_null_number_with_default() -> None:
 
 def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
     client = TestClient(app)
+    seen_score_keys: set[str] = set()
+    allowed_score_keys = {"current_score_estimate", "current_score", "best_score_so_far", "score"}
 
     def audit(node: object, *, path: str = "root") -> None:
         if isinstance(node, dict):
             for key, value in node.items():
                 next_path = f"{path}.{key}"
                 if "score" in key.lower() or "reward" in key.lower():
+                    if "score" in key.lower():
+                        seen_score_keys.add(key)
                     if isinstance(value, list):
                         for index, item in enumerate(value):
                             item_path = f"{next_path}[{index}]"
@@ -208,3 +213,29 @@ def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
     audit(solved_observation.model_dump(exclude_none=True))
     audit(state_payload)
     audit(inference_result)
+    assert seen_score_keys <= allowed_score_keys
+
+
+def test_workflow_actions_do_not_inflate_task_score() -> None:
+    env = TabularCleaningEnvironment()
+    observation = env.reset(task_id="easy_contacts_cleanup")
+    payload = observation.model_dump(exclude_none=True)
+    executed = set()
+    previous_score = observation.current_score_estimate
+
+    while True:
+        action = inference.fallback_action_from_observation(payload, executed)
+        executed.add(inference._action_signature(action))
+        result = env.step(action)
+        if action.action_type in {
+            ActionType.RUN_VALIDATIONS,
+            ActionType.EXPORT_CLEANED_TABLE,
+            ActionType.PUBLISH_TABLE,
+        }:
+            assert result.current_score_estimate == previous_score
+        previous_score = result.current_score_estimate
+        payload = result.model_dump(exclude_none=True)
+        if result.done:
+            break
+    assert grade_task(TASKS["easy_contacts_cleanup"], env.state.current_table) == env.state.current_score
+    env.close()

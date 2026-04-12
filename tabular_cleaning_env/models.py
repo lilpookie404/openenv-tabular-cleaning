@@ -84,8 +84,8 @@ class TabularCleaningState(State):
     source_system: str = ""
     current_table: List[Dict[str, Any]] = Field(default_factory=list)
     current_columns: List[str] = Field(default_factory=list)
-    current_score: float = 0.00001
-    best_score_so_far: float = 0.00001
+    current_score: float = 0.001
+    best_score_so_far: float = 0.001
     submitted: bool = False
     published: bool = False
     profiled: bool = False

@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Any, Dict, List, Sequence
 from uuid import uuid4
 
-from tabular_cleaning_env.graders import grade_table
+from tabular_cleaning_env.graders import SCORE_MAX, SCORE_MIN, grade_task
 from tabular_cleaning_env.models import (
     ActionType,
     CaseMode,
@@ -34,13 +34,9 @@ class TabularCleaningEnvironment(Environment):
     """OpenEnv-compatible environment for a governed tabular cleanup workflow."""
 
     SUPPORTS_CONCURRENT_SESSIONS = True
-    OPEN_INTERVAL_MIN = 1e-5
-    OPEN_INTERVAL_MAX = 0.9999
+    OPEN_INTERVAL_MIN = SCORE_MIN
+    OPEN_INTERVAL_MAX = SCORE_MAX
     REWARD_MIN = 0.01
-    TABLE_SCORE_WEIGHT = 0.9
-    VALIDATION_BONUS = 0.02
-    EXPORT_BONUS = 0.02
-    PUBLISH_BONUS = 0.0599
 
     CLEANING_ACTION_TYPES = {
         ActionType.RENAME_COLUMN,
@@ -83,13 +79,7 @@ class TabularCleaningEnvironment(Environment):
         selected_task = get_task(task_id or self._default_task_id)
         self._task = selected_task
         self._table = clone_rows(load_task_input(selected_task.task_id))
-        initial_grades = grade_table(selected_task, self._table)
-        initial_score = self._compose_episode_score(
-            initial_grades["score"],
-            validation_status="not_run",
-            has_export_artifact=False,
-            published=False,
-        )
+        initial_score = grade_task(selected_task, self._table)
         self._preview_limit = 5
         self._last_action = None
         self._last_action_error = None
@@ -256,23 +246,21 @@ class TabularCleaningEnvironment(Environment):
             else:
                 info["penalty_type"] = "no_op"
 
-        grades = grade_table(self._task, self._table)
         self._state.current_table = clone_rows(self._table)
         self._state.current_columns = self._current_columns()
-        episode_score = self._compose_episode_score(grades["score"])
-        self._state.current_score = episode_score
+        task_score = grade_task(self._task, self._table)
+        self._state.current_score = task_score
         reward = self.REWARD_MIN
 
         if error is None:
-            if episode_score < previous_score:
+            if task_score < previous_score:
                 info["penalty_type"] = "destructive"
-            reward_delta = round(episode_score - previous_best, 6)
+            reward_delta = round(task_score - previous_best, 6)
             reward = self._emit_reward(reward_delta)
-            self._state.best_score_so_far = max(previous_best, episode_score)
+            self._state.best_score_so_far = max(previous_best, task_score)
         else:
             reward = self.REWARD_MIN
-            grades = grade_table(self._task, self._table)
-            self._state.current_score = self._compose_episode_score(grades["score"])
+            self._state.current_score = grade_task(self._task, self._table)
             self._state.current_table = clone_rows(self._table)
             info["penalty_type"] = "invalid"
 
@@ -345,37 +333,6 @@ class TabularCleaningEnvironment(Environment):
         if not self._table:
             return list(self._task.expected_columns)
         return list(self._table[0].keys())
-
-    def _workflow_score_bonus(self) -> float:
-        bonus = 0.0
-        if self._state.validation_status == "passed":
-            bonus += self.VALIDATION_BONUS
-        if bool(self._state.export_artifacts):
-            bonus += self.EXPORT_BONUS
-        if self._state.published:
-            bonus += self.PUBLISH_BONUS
-        return bonus
-
-    def _compose_episode_score(
-        self,
-        table_score: float,
-        *,
-        validation_status: str | None = None,
-        has_export_artifact: bool | None = None,
-        published: bool | None = None,
-    ) -> float:
-        effective_validation = self._state.validation_status if validation_status is None else validation_status
-        effective_export = bool(self._state.export_artifacts) if has_export_artifact is None else has_export_artifact
-        effective_published = self._state.published if published is None else published
-        bonus = 0.0
-        if effective_validation == "passed":
-            bonus += self.VALIDATION_BONUS
-        if effective_export:
-            bonus += self.EXPORT_BONUS
-        if effective_published:
-            bonus += self.PUBLISH_BONUS
-        composed = (self.TABLE_SCORE_WEIGHT * table_score) + bonus
-        return round(self._emit_open_interval(composed), 6)
 
     def _emit_open_interval(self, value: float) -> float:
         return min(max(float(value), self.OPEN_INTERVAL_MIN), self.OPEN_INTERVAL_MAX)

@@ -107,7 +107,7 @@ def test_rule_based_fallback_reaches_near_perfect_open_interval_score() -> None:
     for task_id in TASKS:
         result = inference.run_task(task_id, client=None, model_name="deterministic-fallback")
         assert result["success"] is True
-        assert 0.99 < result["score"] <= OPEN_INTERVAL_MAX
+        assert result["score"] == OPEN_INTERVAL_MAX
 
 
 def test_rule_based_fallback_does_not_emit_sort_rows() -> None:
@@ -176,14 +176,32 @@ def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
                             assert isinstance(item, (int, float)), (
                                 f"{item_path} should be numeric, got {type(item).__name__}"
                             )
-                            assert OPEN_INTERVAL_MIN < float(item) < 1, (
-                                f"{item_path} escaped open interval: {item!r}"
-                            )
+                            if "score" in key.lower():
+                                assert OPEN_INTERVAL_MIN <= float(item) < 1, (
+                                    f"{item_path} escaped open interval: {item!r}"
+                                )
+                                assert format(float(item), ".2f") not in {"0.00", "1.00"}, (
+                                    f"{item_path} rounds to boundary: {item!r}"
+                                )
+                            else:
+                                assert REWARD_MIN <= float(item) < 1, (
+                                    f"{item_path} escaped reward bounds: {item!r}"
+                                )
                     else:
                         assert isinstance(value, (int, float)), (
                             f"{next_path} should be numeric, got {type(value).__name__}"
                         )
-                        assert OPEN_INTERVAL_MIN < float(value) < 1, f"{next_path} escaped open interval: {value!r}"
+                        if "score" in key.lower():
+                            assert OPEN_INTERVAL_MIN <= float(value) < 1, (
+                                f"{next_path} escaped open interval: {value!r}"
+                            )
+                            assert format(float(value), ".2f") not in {"0.00", "1.00"}, (
+                                f"{next_path} rounds to boundary: {value!r}"
+                            )
+                        else:
+                            assert REWARD_MIN <= float(value) < 1, (
+                                f"{next_path} escaped reward bounds: {value!r}"
+                            )
                 audit(value, path=next_path)
         elif isinstance(node, list):
             for index, value in enumerate(node):

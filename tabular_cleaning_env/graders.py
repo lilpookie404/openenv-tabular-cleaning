@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Sequence
 from .tasks import TaskDefinition, load_task_expected
 from .utils import canonical_sort, ordered_row, stringify
 
-SCORE_MIN = 0.001
-SCORE_MAX = 0.999
+SCORE_MIN = 0.01
+SCORE_MAX = 0.99
 NUMERIC_TOLERANCE = 1e-6
 
 

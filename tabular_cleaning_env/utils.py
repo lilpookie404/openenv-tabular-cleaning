@@ -108,18 +108,6 @@ def is_canonical_datetime_for_task(value: Any, include_time: bool) -> bool:
     return str(value).strip() == canonical
 
 
-def completeness_score(rows: Sequence[Dict[str, Any]], required_columns: Sequence[str]) -> float:
-    if not rows or not required_columns:
-        return 1
-    total = len(rows) * len(required_columns)
-    filled = 0
-    for row in rows:
-        for column in required_columns:
-            if not is_missing(row.get(column)):
-                filled += 1
-    return filled / total
-
-
 def count_non_missing(row: Dict[str, Any], columns: Iterable[str]) -> int:
     return sum(0 if is_missing(row.get(column)) else 1 for column in columns)
 

@@ -58,14 +58,14 @@ def _values_match(column: str, current_value: Any, expected_value: Any, task: Ta
 def _raw_match_ratio(task: TaskDefinition, rows: Sequence[Dict[str, Any]]) -> float:
     columns = _grade_columns(task)
     if not columns:
-        return 1.0
+        return SCORE_MAX
 
     current_rows = _normalize_rows_for_grading(rows, task, columns)
     expected_rows = _normalize_rows_for_grading(load_task_expected(task.task_id), task, columns)
     total_rows = max(len(current_rows), len(expected_rows), 1)
     total_cells = total_rows * len(columns)
     if total_cells == 0:
-        return 1.0
+        return SCORE_MAX
 
     matches = 0
     blank_row = _blank_row(columns)

@@ -183,6 +183,9 @@ def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
                                 assert format(float(item), ".2f") not in {"0.00", "1.00"}, (
                                     f"{item_path} rounds to boundary: {item!r}"
                                 )
+                                assert format(float(item), ".1f") not in {"0.0", "1.0"}, (
+                                    f"{item_path} rounds to 1dp boundary: {item!r}"
+                                )
                             else:
                                 assert REWARD_MIN <= float(item) < 1, (
                                     f"{item_path} escaped reward bounds: {item!r}"
@@ -197,6 +200,9 @@ def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
                             )
                             assert format(float(value), ".2f") not in {"0.00", "1.00"}, (
                                 f"{next_path} rounds to boundary: {value!r}"
+                            )
+                            assert format(float(value), ".1f") not in {"0.0", "1.0"}, (
+                                f"{next_path} rounds to 1dp boundary: {value!r}"
                             )
                         else:
                             assert REWARD_MIN <= float(value) < 1, (

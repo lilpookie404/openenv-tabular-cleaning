@@ -47,7 +47,7 @@ from tabular_cleaning_env.models import ActionType, TabularCleaningAction
 from tabular_cleaning_env.utils import stable_json
 
 ENV_NAME = "tabular_cleaning_env"
-OPEN_INTERVAL_MIN = 0.01
+OPEN_INTERVAL_MIN = 0.1
 REWARD_MIN = 0.01
 TASK_ORDER = [
     "easy_contacts_cleanup",

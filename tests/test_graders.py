@@ -85,11 +85,22 @@ def test_task_scores_are_rounding_safe_at_two_decimals() -> None:
             assert formatted not in {"0.00", "1.00"}, f"{task_id} rounded out of range: {score}"
 
 
+def test_task_scores_are_rounding_safe_at_one_decimal() -> None:
+    for task_id, task in TASKS.items():
+        raw_score = grade_task(task, load_task_input(task_id))
+        gold_score = grade_task(task, load_task_expected(task_id))
+        missing_score = grade_task(task, [{"unknown_column": "value"}])
+        for score in (raw_score, gold_score, missing_score):
+            formatted = format(score, ".1f")
+            assert formatted not in {"0.0", "1.0"}, f"{task_id} rounded out of range at 1dp: {score}"
+
+
 def test_missing_grading_columns_produce_low_but_in_range_score() -> None:
     for task in TASKS.values():
         score = grade_task(task, [{"unknown_column": "value"}])
         assert OPEN_INTERVAL_MIN <= score < 0.5
         assert format(score, ".2f") != "0.00"
+        assert format(score, ".1f") != "0.0"
 
 
 def test_terminal_publish_reward_is_positive_and_in_range() -> None:

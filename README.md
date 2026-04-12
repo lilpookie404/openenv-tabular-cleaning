@@ -260,9 +260,9 @@ The fallback planner follows the same governed workflow as the environment:
 
 Reproducible baseline scores:
 
-- `easy_contacts_cleanup`: `0.99`
-- `medium_orders_cleanup`: `0.99`
-- `hard_appointments_cleanup`: `0.99`
+- `easy_contacts_cleanup`: `0.9`
+- `medium_orders_cleanup`: `0.9`
+- `hard_appointments_cleanup`: `0.9`
 
 ### Required Inference Log Format
 

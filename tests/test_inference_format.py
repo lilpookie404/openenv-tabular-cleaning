@@ -163,7 +163,7 @@ def test_fallback_planner_uses_task_rules() -> None:
             "issues_summary": ["Schema does not match the expected cleaned table columns."],
             "steps_taken": 0,
             "max_steps": 8,
-            "current_score_estimate": 0.01,
+            "current_score_estimate": 0.1,
         },
         executed_actions=set(),
     )
@@ -187,7 +187,7 @@ def test_fallback_planner_uses_task_rules() -> None:
             "issues_summary": ["Schema does not match the expected cleaned table columns."],
             "steps_taken": 1,
             "max_steps": 8,
-            "current_score_estimate": 0.01,
+            "current_score_estimate": 0.1,
             "validation_status": "not_run",
         },
         executed_actions=set(),

@@ -5,12 +5,12 @@ from __future__ import annotations
 from fastapi.responses import HTMLResponse
 
 from tabular_cleaning_env.models import TabularCleaningAction, TabularCleaningObservation
-from tabular_cleaning_env.openenv_compat import create_app
+from tabular_cleaning_env.openenv_compat import create_compat_app
 from tabular_cleaning_env.tasks import TASKS
 
 from .environment import TabularCleaningEnvironment
 
-app = create_app(
+app = create_compat_app(
     TabularCleaningEnvironment,
     TabularCleaningAction,
     TabularCleaningObservation,

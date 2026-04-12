@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 try:  # pragma: no cover - exercised in Docker / official runtime
     from openenv.core.client_types import StepResult
     from openenv.core.env_client import EnvClient
-    from openenv.core.env_server.http_server import create_app
+    from openenv.core.env_server.http_server import create_app as _official_create_app
     from openenv.core.env_server.interfaces import Environment
     from openenv.core.env_server.types import Action, Observation, State
 
@@ -276,3 +276,151 @@ except Exception:  # pragma: no cover - local fallback path tested
 ObsT = TypeVar("ObsT")
 ActT = TypeVar("ActT")
 StateT = TypeVar("StateT")
+
+
+class _CompatHealthStatus(str, Enum):
+    HEALTHY = "healthy"
+
+
+class _CompatHealthResponse(BaseModel):
+    status: _CompatHealthStatus = _CompatHealthStatus.HEALTHY
+
+
+class _CompatSchemaResponse(BaseModel):
+    action: Dict[str, Any]
+    observation: Dict[str, Any]
+    state: Dict[str, Any]
+
+
+def _serialize_observation_compat(observation: Observation) -> Dict[str, Any]:
+    obs_dict = observation.model_dump(exclude={"reward", "done"})
+    return {
+        "observation": obs_dict,
+        "reward": observation.reward,
+        "done": observation.done,
+    }
+
+
+def create_compat_app(
+    env_factory: Callable[[], Environment] | Type[Environment],
+    action_cls: Type[Action],
+    observation_cls: Type[Observation],
+    env_name: str,
+) -> FastAPI:
+    app = FastAPI(title=env_name, version="1.0.0")
+    shared_env = None
+
+    def make_env() -> Environment:
+        if isinstance(env_factory, type):
+            return env_factory()
+        return env_factory()
+
+    def get_shared_env() -> Environment:
+        nonlocal shared_env
+        if shared_env is None:
+            shared_env = make_env()
+        return shared_env
+
+    def state_schema() -> Dict[str, Any]:
+        env = get_shared_env()
+        try:
+            return type(env.state).model_json_schema()
+        except Exception:
+            return State.model_json_schema()
+
+    @app.get("/health")
+    async def health() -> _CompatHealthResponse:
+        return _CompatHealthResponse()
+
+    @app.get("/metadata")
+    async def metadata() -> Dict[str, Any]:
+        env = get_shared_env()
+        try:
+            meta = env.get_metadata()
+            if isinstance(meta, BaseModel):
+                return meta.model_dump()
+            return dict(meta)
+        except Exception:
+            return {"name": env_name, "description": f"{env_name} environment"}
+
+    @app.get("/schema")
+    async def schema() -> _CompatSchemaResponse:
+        return _CompatSchemaResponse(
+            action=action_cls.model_json_schema(),
+            observation=observation_cls.model_json_schema(),
+            state=state_schema(),
+        )
+
+    @app.get("/state")
+    async def state() -> Dict[str, Any]:
+        return get_shared_env().state.model_dump()
+
+    @app.post("/reset")
+    async def reset(request: Dict[str, Any] = Body(default_factory=dict)) -> Dict[str, Any]:
+        observation = get_shared_env().reset(**request)
+        return _serialize_observation_compat(observation)
+
+    @app.post("/step")
+    async def step(request: Dict[str, Any]) -> Dict[str, Any]:
+        if "action" not in request:
+            raise HTTPException(status_code=422, detail="Field required: action")
+        env = get_shared_env()
+        action = action_cls.model_validate(request["action"])
+        observation = env.step(action)
+        return _serialize_observation_compat(observation)
+
+    @app.post("/mcp")
+    async def mcp(request: Request) -> Dict[str, Any]:
+        try:
+            payload = await request.json()
+        except Exception:
+            payload = {}
+        return {
+            "jsonrpc": "2.0",
+            "id": payload.get("id"),
+            "error": {
+                "code": -32601,
+                "message": "MCP tools are not implemented for this simulation environment.",
+            },
+        }
+
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        await websocket.accept()
+        env = make_env()
+        try:
+            while True:
+                raw = await websocket.receive_text()
+                message = json.loads(raw)
+                msg_type = message.get("type")
+                if msg_type == "reset":
+                    observation = env.reset(**message.get("data", {}))
+                    await websocket.send_json(
+                        {"type": "observation", "data": _serialize_observation_compat(observation)}
+                    )
+                elif msg_type == "step":
+                    action = action_cls.model_validate(message.get("data", {}))
+                    observation = env.step(action)
+                    await websocket.send_json(
+                        {"type": "observation", "data": _serialize_observation_compat(observation)}
+                    )
+                elif msg_type == "state":
+                    await websocket.send_json({"type": "state", "data": env.state.model_dump()})
+                elif msg_type == "close":
+                    break
+                else:
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "data": {"message": f"Unsupported message type: {msg_type}"},
+                        }
+                    )
+        except WebSocketDisconnect:
+            pass
+        finally:
+            env.close()
+
+    return app
+
+
+create_app = create_compat_app

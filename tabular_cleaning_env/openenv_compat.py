@@ -39,7 +39,7 @@ except Exception:  # pragma: no cover - local fallback path tested
         model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
         done: bool = False
-        reward: Optional[float] = None
+        reward: float = 0.01
         metadata: Dict[str, Any] = Field(default_factory=dict)
 
     class State(BaseModel):
@@ -91,7 +91,7 @@ except Exception:  # pragma: no cover - local fallback path tested
     @dataclass
     class StepResult(Generic[ObsT]):
         observation: ObsT
-        reward: Optional[float]
+        reward: float
         done: bool
 
     class EnvClient(ABC, Generic[ActT, ObsT, StateT]):

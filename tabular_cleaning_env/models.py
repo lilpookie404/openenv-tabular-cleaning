@@ -54,6 +54,7 @@ class TabularCleaningAction(Action):
 
 
 class TabularCleaningObservation(Observation):
+    reward: float = 0.01
     task_id: str
     difficulty: str
     source_system: str

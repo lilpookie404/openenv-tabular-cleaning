@@ -146,3 +146,65 @@ def test_max_steps_terminates_episode() -> None:
         result = env.step(TabularCleaningAction(action_type=ActionType.INSPECT_TABLE))
     assert result is not None
     assert result.done is True
+
+
+def test_schema_reward_is_non_null_number_with_default() -> None:
+    client = TestClient(app)
+    schema = client.get("/schema").json()
+    reward_schema = schema["observation"]["properties"]["reward"]
+    assert reward_schema["type"] == "number"
+    assert reward_schema["default"] == REWARD_MIN
+    assert "anyOf" not in reward_schema
+
+
+def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
+    client = TestClient(app)
+
+    def audit(node: object, *, path: str = "root") -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                next_path = f"{path}.{key}"
+                if "score" in key.lower() or "reward" in key.lower():
+                    if isinstance(value, list):
+                        for index, item in enumerate(value):
+                            item_path = f"{next_path}[{index}]"
+                            assert isinstance(item, (int, float)), (
+                                f"{item_path} should be numeric, got {type(item).__name__}"
+                            )
+                            assert OPEN_INTERVAL_MIN < float(item) < 1, (
+                                f"{item_path} escaped open interval: {item!r}"
+                            )
+                    else:
+                        assert isinstance(value, (int, float)), (
+                            f"{next_path} should be numeric, got {type(value).__name__}"
+                        )
+                        assert OPEN_INTERVAL_MIN < float(value) < 1, f"{next_path} escaped open interval: {value!r}"
+                audit(value, path=next_path)
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                audit(value, path=f"{path}[{index}]")
+
+    reset = client.post("/reset", json={"task_id": "easy_contacts_cleanup"}).json()
+    step = client.post("/step", json={"action": {"action_type": "inspect_table"}}).json()
+
+    env = TabularCleaningEnvironment()
+    observation = env.reset(task_id="easy_contacts_cleanup")
+    payload = observation.model_dump(exclude_none=True)
+    executed = set()
+    solved_observation = observation
+    while True:
+        action = inference.fallback_action_from_observation(payload, executed)
+        executed.add(inference._action_signature(action))
+        solved_observation = env.step(action)
+        payload = solved_observation.model_dump(exclude_none=True)
+        if solved_observation.done:
+            break
+    state_payload = env.state.model_dump()
+    inference_result = inference.run_task("easy_contacts_cleanup", client=None, model_name="deterministic-fallback")
+    env.close()
+
+    audit(reset)
+    audit(step)
+    audit(solved_observation.model_dump(exclude_none=True))
+    audit(state_payload)
+    audit(inference_result)

@@ -138,7 +138,7 @@ class TabularCleaningEnvironment(Environment):
                 reward=self.REWARD_MIN,
                 done=True,
                 error="Episode already finished. Call reset() to start a new task.",
-                metadata={"final_score": self._state.current_score, "reason": "episode_complete"},
+                metadata={"final_quality_index": self._state.current_score, "reason": "episode_complete"},
             )
 
         self._state.step_count += 1
@@ -307,7 +307,7 @@ class TabularCleaningEnvironment(Environment):
 
     def _build_observation(
         self,
-        reward: float | None,
+        reward: float,
         done: bool,
         error: str | None = None,
         metadata: Dict[str, Any] | None = None,
@@ -674,7 +674,7 @@ class TabularCleaningEnvironment(Environment):
             "data_quality_report": {
                 "task_id": self._task.task_id,
                 "source_system": self._task.source_system,
-                "score": round(self._state.current_score, 6),
+                "quality_index": round(self._state.current_score, 6),
                 "validation_status": self._state.validation_status,
                 "validation_checks": clone_rows(self._state.validation_results),
             },

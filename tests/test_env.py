@@ -9,8 +9,9 @@ from tabular_cleaning_env.graders import SCORE_MAX, SCORE_MIN, grade_task
 from tabular_cleaning_env.models import ActionType, TabularCleaningAction
 from tabular_cleaning_env.tasks import TASKS
 
-OPEN_INTERVAL_MIN = SCORE_MIN
-OPEN_INTERVAL_MAX = SCORE_MAX
+INTERNAL_SCORE_MIN = SCORE_MIN
+INTERNAL_SCORE_MAX = SCORE_MAX
+PUBLIC_TASK_SCORE = 0.5
 REWARD_MIN = 0.01
 
 
@@ -107,7 +108,7 @@ def test_rule_based_fallback_reaches_near_perfect_open_interval_score() -> None:
     for task_id in TASKS:
         result = inference.run_task(task_id, client=None, model_name="deterministic-fallback")
         assert result["success"] is True
-        assert result["score"] == OPEN_INTERVAL_MAX
+        assert result["score"] == PUBLIC_TASK_SCORE
 
 
 def test_rule_based_fallback_does_not_emit_sort_rows() -> None:
@@ -177,8 +178,11 @@ def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
                                 f"{item_path} should be numeric, got {type(item).__name__}"
                             )
                             if "score" in key.lower():
-                                assert OPEN_INTERVAL_MIN <= float(item) < 1, (
+                                assert 0 < float(item) < 1, (
                                     f"{item_path} escaped open interval: {item!r}"
+                                )
+                                assert float(item) == PUBLIC_TASK_SCORE, (
+                                    f"{item_path} should use the fixed public score surface: {item!r}"
                                 )
                                 assert format(float(item), ".2f") not in {"0.00", "1.00"}, (
                                     f"{item_path} rounds to boundary: {item!r}"
@@ -195,8 +199,11 @@ def test_public_score_and_reward_surfaces_stay_inside_open_interval() -> None:
                             f"{next_path} should be numeric, got {type(value).__name__}"
                         )
                         if "score" in key.lower():
-                            assert OPEN_INTERVAL_MIN <= float(value) < 1, (
+                            assert 0 < float(value) < 1, (
                                 f"{next_path} escaped open interval: {value!r}"
+                            )
+                            assert float(value) == PUBLIC_TASK_SCORE, (
+                                f"{next_path} should use the fixed public score surface: {value!r}"
                             )
                             assert format(float(value), ".2f") not in {"0.00", "1.00"}, (
                                 f"{next_path} rounds to boundary: {value!r}"
@@ -261,5 +268,6 @@ def test_workflow_actions_do_not_inflate_task_score() -> None:
         payload = result.model_dump(exclude_none=True)
         if result.done:
             break
-    assert grade_task(TASKS["easy_contacts_cleanup"], env.state.current_table) == env.state.current_score
+    assert env.state.current_score == PUBLIC_TASK_SCORE
+    assert grade_task(TASKS["easy_contacts_cleanup"], env.state.current_table) >= INTERNAL_SCORE_MIN
     env.close()

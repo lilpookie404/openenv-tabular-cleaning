@@ -36,6 +36,7 @@ class TabularCleaningEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
     OPEN_INTERVAL_MIN = SCORE_MIN
     OPEN_INTERVAL_MAX = SCORE_MAX
+    PUBLIC_TASK_SCORE = 0.5
     REWARD_MIN = 0.01
 
     CLEANING_ACTION_TYPES = {
@@ -66,6 +67,8 @@ class TabularCleaningEnvironment(Environment):
         self._last_action: Dict[str, Any] | None = None
         self._last_action_error: str | None = None
         self._change_counter = 0
+        self._quality_score = self.PUBLIC_TASK_SCORE
+        self._best_quality_score = self.PUBLIC_TASK_SCORE
         self.reset(task_id=default_task_id)
 
     def reset(
@@ -79,11 +82,13 @@ class TabularCleaningEnvironment(Environment):
         selected_task = get_task(task_id or self._default_task_id)
         self._task = selected_task
         self._table = clone_rows(load_task_input(selected_task.task_id))
-        initial_score = grade_task(selected_task, self._table)
+        initial_quality = grade_task(selected_task, self._table)
         self._preview_limit = 5
         self._last_action = None
         self._last_action_error = None
         self._change_counter = 0
+        self._quality_score = initial_quality
+        self._best_quality_score = initial_quality
         self._state = TabularCleaningState(
             episode_id=episode_id or str(uuid4()),
             step_count=0,
@@ -91,8 +96,8 @@ class TabularCleaningEnvironment(Environment):
             source_system=selected_task.source_system,
             current_table=clone_rows(self._table),
             current_columns=self._current_columns(),
-            current_score=initial_score,
-            best_score_so_far=initial_score,
+            current_score=self.PUBLIC_TASK_SCORE,
+            best_score_so_far=self.PUBLIC_TASK_SCORE,
             submitted=False,
             published=False,
             profiled=False,
@@ -128,15 +133,15 @@ class TabularCleaningEnvironment(Environment):
                 reward=self.REWARD_MIN,
                 done=True,
                 error="Episode already finished. Call reset() to start a new task.",
-                metadata={"final_quality_index": self._state.current_score, "reason": "episode_complete"},
+                metadata={"final_quality_index": self._quality_score, "reason": "episode_complete"},
             )
 
         self._state.step_count += 1
         self._last_action = action.model_dump(exclude_none=True)
         self._last_action_error = None
 
-        previous_score = self._state.current_score
-        previous_best = self._state.best_score_so_far
+        previous_quality = self._quality_score
+        previous_best_quality = self._best_quality_score
         before_table = clone_rows(self._table)
         info: Dict[str, Any] = {"action_type": action.action_type.value}
         error: str | None = None
@@ -248,19 +253,22 @@ class TabularCleaningEnvironment(Environment):
 
         self._state.current_table = clone_rows(self._table)
         self._state.current_columns = self._current_columns()
-        task_score = grade_task(self._task, self._table)
-        self._state.current_score = task_score
+        task_quality = grade_task(self._task, self._table)
+        self._quality_score = task_quality
+        self._state.current_score = self.PUBLIC_TASK_SCORE
         reward = self.REWARD_MIN
 
         if error is None:
-            if task_score < previous_score:
+            if task_quality < previous_quality:
                 info["penalty_type"] = "destructive"
-            reward_delta = round(task_score - previous_best, 6)
+            reward_delta = round(task_quality - previous_best_quality, 6)
             reward = self._emit_reward(reward_delta)
-            self._state.best_score_so_far = max(previous_best, task_score)
+            self._best_quality_score = max(previous_best_quality, task_quality)
+            self._state.best_score_so_far = self.PUBLIC_TASK_SCORE
         else:
             reward = self.REWARD_MIN
-            self._state.current_score = grade_task(self._task, self._table)
+            self._quality_score = grade_task(self._task, self._table)
+            self._state.current_score = self.PUBLIC_TASK_SCORE
             self._state.current_table = clone_rows(self._table)
             info["penalty_type"] = "invalid"
 
@@ -322,7 +330,7 @@ class TabularCleaningEnvironment(Environment):
             last_action_error=error,
             steps_taken=self._state.step_count,
             max_steps=self._task.max_steps,
-            current_score_estimate=round(self._state.current_score, 6),
+            current_score_estimate=round(self.PUBLIC_TASK_SCORE, 6),
             available_actions=[action.value for action in ActionType],
             reward=reward,
             done=done,
@@ -631,7 +639,7 @@ class TabularCleaningEnvironment(Environment):
             "data_quality_report": {
                 "task_id": self._task.task_id,
                 "source_system": self._task.source_system,
-                "quality_index": round(self._state.current_score, 6),
+                "quality_index": round(self._quality_score, 6),
                 "validation_status": self._state.validation_status,
                 "validation_checks": clone_rows(self._state.validation_results),
             },

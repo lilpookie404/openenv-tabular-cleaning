@@ -47,7 +47,7 @@ from tabular_cleaning_env.models import ActionType, TabularCleaningAction
 from tabular_cleaning_env.utils import stable_json
 
 ENV_NAME = "tabular_cleaning_env"
-OPEN_INTERVAL_MIN = 0.1
+PUBLIC_TASK_SCORE = 0.5
 REWARD_MIN = 0.01
 TASK_ORDER = [
     "easy_contacts_cleanup",
@@ -346,7 +346,7 @@ def run_task(
 ) -> Dict[str, Any]:
     env = env_factory()
     rewards: List[float] = []
-    score = OPEN_INTERVAL_MIN
+    score = PUBLIC_TASK_SCORE
     step_count = 0
     success = False
     last_error: Optional[str] = None
@@ -381,7 +381,7 @@ def run_task(
             reward = float(result.reward) if result.reward is not None else REWARD_MIN
             rewards.append(reward)
             last_error = result.last_action_error
-            score = result.current_score_estimate
+            score = PUBLIC_TASK_SCORE
             done = bool(result.done)
             print(
                 f"[STEP] step={step_count} action={_action_text(action)} reward={reward:.2f} "

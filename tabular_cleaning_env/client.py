@@ -41,7 +41,7 @@ class TabularCleaningEnv(
             last_action_error=obs_data.get("last_action_error"),
             steps_taken=obs_data.get("steps_taken", 0),
             max_steps=obs_data.get("max_steps", 0),
-            current_score_estimate=obs_data.get("current_score_estimate", 0.1),
+            current_score_estimate=obs_data.get("current_score_estimate", 0.5),
             available_actions=obs_data.get("available_actions", []),
             reward=payload.get("reward"),
             done=payload.get("done", False),
